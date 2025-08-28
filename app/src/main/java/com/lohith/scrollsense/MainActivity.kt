@@ -50,3 +50,4 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+// This is a comment
