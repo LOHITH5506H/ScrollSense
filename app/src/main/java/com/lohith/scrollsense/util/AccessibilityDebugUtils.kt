@@ -24,7 +24,7 @@ object AccessibilityDebugUtils {
             val child = node.getChild(i)
             if (child != null) {
                 printNodeTree(child, "$prefix  ")
-                child.recycle()
+                // Removed child.recycle(); newer platform handles recycling automatically
             }
         }
     }
@@ -45,7 +45,6 @@ object AccessibilityDebugUtils {
             val child = node.getChild(i)
             if (child != null) {
                 textNodes.addAll(findAllTextNodes(child))
-                child.recycle()
             }
         }
 

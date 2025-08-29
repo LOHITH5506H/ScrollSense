@@ -5,11 +5,15 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "usage_events")
 data class UsageEvent(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
     val packageName: String,
     val appLabel: String,
     val screenTitle: String,
-    val category: String,  // ✅ Added category field
+    val category: String,
+    val subcategory: String = "", // New field
+    val language: String = "en", // New field
+    val confidence: Float = 1.0f, // New field for ML confidence
     val startTime: Long,
     val endTime: Long,
     val durationMs: Long

@@ -1,0 +1,11 @@
+{
+  "categories": [
+    { "id": "social", "en": "Social", "es": "Social", "fr": "Social", "de": "Sozial" },
+    { "id": "productivity", "en": "Productivity", "es": "Productividad", "fr": "Productivité", "de": "Produktivität" },
+    { "id": "entertainment", "en": "Entertainment", "es": "Entretenimiento", "fr": "Divertissement", "de": "Unterhaltung" },
+    { "id": "news", "en": "News", "es": "Noticias", "fr": "Actualités", "de": "Nachrichten" },
+    { "id": "education", "en": "Education", "es": "Educación", "fr": "Éducation", "de": "Bildung" },
+    { "id": "health", "en": "Health", "es": "Salud", "fr": "Santé", "de": "Gesundheit" }
+  ]
+}
+

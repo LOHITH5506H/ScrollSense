@@ -1,284 +1,325 @@
+@file:OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
+
+// Enhanced MyAccessibilityService.kt
+// Location: app/src/main/java/com/lohith/scrollsense/MyAccessibilityService.kt
+
 package com.lohith.scrollsense
 
 import android.accessibilityservice.AccessibilityService
-import android.accessibilityservice.AccessibilityServiceInfo
-import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import kotlinx.coroutines.launch
 import com.lohith.scrollsense.data.AppDatabase
 import com.lohith.scrollsense.data.UsageEvent
 import com.lohith.scrollsense.util.CategoryClassifier
 import com.lohith.scrollsense.util.PackageNameHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-
-private const val TAG = "MyAccessibilityService"
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import android.util.Log
 
 class MyAccessibilityService : AccessibilityService() {
+    companion object { private const val TAG = "ScrollSenseSvc" }
 
+    private lateinit var database: AppDatabase
     private var currentPackage: String? = null
-    private var currentTitleText: String? = null
-    private var currentStart: Long = 0L
-    private var lastEventTime: Long = 0L
-
-    private val mainScope = CoroutineScope(Dispatchers.IO)
+    private var sessionStart: Long = 0
+    private var currentEventId: Long? = null
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var lastExtendUpdate: Long = 0L
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        Log.d(TAG, "Accessibility service connected")
-
-        val info = AccessibilityServiceInfo().apply {
-            eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
-                    AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
-            feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
-            notificationTimeout = 500
-            flags = AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
-        }
-        serviceInfo = info
+        database = AppDatabase.getDatabase(this)
+        Log.d(TAG, "Service connected")
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
-        val pkg = event.packageName?.toString() ?: return
-
-        // Skip useless system packages
-        if (pkg in listOf("com.android.systemui", "com.google.android.googlequicksearchbox", packageName)) {
-            return
-        }
-
+        val packageName = event.packageName?.toString() ?: return
+        if (packageName == packageName()) return // ignore own app
         val now = System.currentTimeMillis()
+        Log.d(TAG, "Event type=${event.eventType} pkg=$packageName source=${event.className}")
 
-        // Extract text using improved method
-        val title = extractTextFromEvent(event)
-
-        // DEBUG LOG - ADD THIS TO SEE WHAT'S BEING EXTRACTED
-        Log.d(TAG, "🔍 EXTRACTION DEBUG:")
-        Log.d(TAG, "   Package: $pkg")
-        Log.d(TAG, "   Extracted title: '$title'")
-
-        if (pkg != currentPackage) {
-            // App switched → close previous
-            saveCurrentEvent(now)
-
-            // Start new
-            currentPackage = pkg
-            currentTitleText = title
-            currentStart = now
-        } else {
-            // Same app still active → update title if we found better text
-            if (title.isNotEmpty() && title != currentTitleText && title.length > (currentTitleText?.length ?: 0)) {
-                Log.d(TAG, "Updated title for $pkg: '$title'")
-                currentTitleText = title
-            }
-            lastEventTime = now
-        }
-    }
-
-    override fun onInterrupt() {
-        saveCurrentEvent(System.currentTimeMillis())
-    }
-
-    override fun onUnbind(intent: android.content.Intent?): Boolean {
-        saveCurrentEvent(System.currentTimeMillis())
-        return super.onUnbind(intent)
-    }
-
-    private fun saveCurrentEvent(endTime: Long) {
-        if (currentPackage != null && currentStart > 0) {
-            val duration = endTime - currentStart
-
-            if (duration > 5000) {
-                val screenTitle = currentTitleText ?: ""
-                val category = CategoryClassifier.classify(screenTitle)
-
-                // DEBUG LOG FOR CLASSIFICATION
-                Log.d(TAG, "🎯 CLASSIFICATION DEBUG:")
-                Log.d(TAG, "   Title: '$screenTitle'")
-                Log.d(TAG, "   Category: '$category'")
-                Log.d(TAG, "   Duration: ${duration / 1000}s")
-
-                val ev = UsageEvent(
-                    id = 0,
-                    packageName = currentPackage!!,
-                    appLabel = PackageNameHelper.getAppLabel(applicationContext, currentPackage!!),
-                    screenTitle = screenTitle,
-                    category = category,
-                    startTime = currentStart,
-                    endTime = endTime,
-                    durationMs = duration
-                )
-                persistEvent(ev)
-            }
-        }
-        currentPackage = null
-        currentTitleText = null
-        currentStart = 0L
-    }
-
-    private fun persistEvent(ev: UsageEvent) {
-        mainScope.launch {
-            try {
-                val db = AppDatabase.getInstance(applicationContext)
-                db.usageEventDao().insert(ev)
-                Log.d(TAG, "Saved event: ${ev.appLabel} | ${ev.screenTitle} | ${ev.category} | ${ev.durationMs / 1000}s")
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to persist event", e)
-            }
-        }
-    }
-
-    private fun extractTextFromEvent(event: AccessibilityEvent): String {
-        val pkg = event.packageName?.toString() ?: ""
-
-        // First try to get text from the event itself
-        val eventText = extractEventText(event)
-        if (eventText.isNotEmpty() && !isSystemUIText(eventText)) {
-            return eventText
-        }
-
-        // For YouTube specifically, try to get the root window and traverse
-        if (pkg == "com.google.android.youtube") {
-            val rootNode = getRootInActiveWindow()
-            if (rootNode != null) {
-                val youtubeTitle = extractYouTubeTitle(rootNode)
-                if (youtubeTitle.isNotEmpty()) {
-                    return youtubeTitle
+        // If within same package, extend session periodically
+        if (packageName == currentPackage) {
+            val elapsed = now - sessionStart
+            if (elapsed >= 1000) { // ignore sub-second noise
+                // Extend every 5s to keep charts relatively fresh
+                if (now - lastExtendUpdate >= 5000) {
+                    extendCurrentSession(now)
+                    lastExtendUpdate = now
                 }
             }
+            return // don't start new session
         }
 
-        // For other apps, try to extract from event source
-        val sourceNode = event.source
-        if (sourceNode != null) {
-            val allTexts = extractAllTextsFromNode(sourceNode)
-            val bestText = findBestTitle(allTexts, pkg)
-            if (bestText.isNotEmpty()) {
-                return bestText
-            }
+        val screenTitle = extractMeaningfulTitle(event, packageName)
+        if (isSystemNoise(screenTitle)) return
+
+        // Close any previous session (ensures duration written)
+        if (currentPackage != null && packageName != currentPackage) {
+            endCurrentSession(now)
         }
 
-        // If all else fails, try root window traversal
-        val rootNode = getRootInActiveWindow()
-        if (rootNode != null) {
-            val allTexts = extractAllTextsFromNode(rootNode)
-            val bestText = findBestTitle(allTexts, pkg)
-            if (bestText.isNotEmpty()) {
-                return bestText
-            }
-        }
-
-        return eventText // Fallback to event text even if it might be system UI
+        startNewSession(packageName, screenTitle, now)
     }
 
-    private fun extractEventText(event: AccessibilityEvent): String {
-        val title = event.contentDescription?.toString()
-        if (!title.isNullOrBlank()) return title
+    private fun packageName(): String = applicationContext.packageName
 
-        val textParts = StringBuilder()
-        event.text?.forEach { c -> textParts.append(c).append(" ") }
-        val txt = textParts.toString().trim()
-        if (txt.isNotEmpty()) return txt
+    private fun startNewSession(packageName: String, screenTitle: String, startTime: Long) {
+        Log.d(TAG, "Start session pkg=$packageName title=$screenTitle @${startTime}")
+        currentPackage = packageName
+        sessionStart = startTime
+        lastExtendUpdate = startTime
 
-        return event.className?.toString() ?: ""
+        val appLabel = PackageNameHelper.getAppLabel(this, packageName)
+        val category = CategoryClassifier.classifyContent(screenTitle, packageName)
+
+        val usageEvent = UsageEvent(
+            packageName = packageName,
+            appLabel = appLabel,
+            screenTitle = screenTitle,
+            category = category,
+            startTime = startTime,
+            endTime = startTime,
+            durationMs = 0
+        )
+
+        serviceScope.launch {
+            try {
+                currentEventId = database.usageEventDao().insert(usageEvent)
+                Log.d(TAG, "Inserted usage event id=$currentEventId for $packageName")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to insert usage event", e)
+            }
+        }
     }
 
-    private fun extractYouTubeTitle(node: AccessibilityNodeInfo): String {
-        val allTexts = extractAllTextsFromNode(node)
+    private fun extendCurrentSession(now: Long) {
+        val id = currentEventId ?: return
+        if (sessionStart <= 0) return
+        val duration = now - sessionStart
+        if (duration < 500) return
+        serviceScope.launch {
+            try {
+                database.usageEventDao().updateEventEnd(id, now, duration)
+                Log.d(TAG, "Extend session id=$id duration=$duration ms")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to extend session id=$id", e)
+            }
+        }
+    }
 
-        // Look for YouTube-specific patterns
-        for (text in allTexts) {
-            if (isLikelyVideoTitle(text)) {
-                Log.d(TAG, "Found YouTube title: '$text'")
+    private fun endCurrentSession(now: Long = System.currentTimeMillis()) {
+        val id = currentEventId ?: return
+        if (sessionStart <= 0) return
+        val duration = now - sessionStart
+        if (duration < 300) { // discard ultra-short sessions
+            Log.d(TAG, "Discard short session id=$id duration=$duration ms (<300ms)")
+            currentEventId = null
+            currentPackage = null
+            sessionStart = 0
+            return
+        }
+        serviceScope.launch {
+            try {
+                database.usageEventDao().updateEventEnd(id, now, duration)
+                Log.d(TAG, "End session id=$id duration=$duration ms (accepted=${duration >= 300})")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to end session id=$id", e)
+            }
+        }
+        currentEventId = null
+        currentPackage = null
+        sessionStart = 0
+    }
+
+    // Add better text extraction logic
+    private fun extractMeaningfulTitle(event: AccessibilityEvent, packageName: String): String {
+        return when {
+            packageName.contains("youtube") -> extractYouTubeTitle(event)
+            packageName.contains("incallui") -> extractCallTitle(event)
+            packageName.contains("whatsapp") -> extractWhatsAppTitle(event)
+            else -> extractGenericTitle(event)
+        }
+    }
+
+
+    private fun extractYouTubeTitle(event: AccessibilityEvent): String {
+        // Look for video title in specific YouTube elements
+        val rootNode = rootInActiveWindow ?: return event.text?.toString() ?: ""
+
+        // Search for video title elements
+        val titleNodes = findNodesBySelector(rootNode, listOf(
+            "android.widget.TextView", // Main title
+            "android.view.ViewGroup" // Title container
+        ))
+
+        for (node in titleNodes) {
+            val text = node.text?.toString()
+            if (text != null && isValidYouTubeTitle(text)) {
                 return text
             }
         }
 
-        return ""
+        return event.text?.toString() ?: "YouTube Content"
     }
 
-    private fun extractAllTextsFromNode(node: AccessibilityNodeInfo?): List<String> {
-        val texts = mutableListOf<String>()
+    private fun isValidYouTubeTitle(text: String): Boolean {
+        // Filter out UI elements and suggestions
+        val invalidPatterns = listOf(
+            "Subscribe", "Like", "Share", "Comment",
+            "Up next", "Autoplay", "Settings",
+            "More videos", "Playlist"
+        )
 
-        if (node == null) return texts
+        return text.length > 10 &&
+                !invalidPatterns.any { text.contains(it, ignoreCase = true) } &&
+                !text.matches(Regex("\\d+:\\d+")) // Not duration
+    }
 
-        try {
-            // Get text from current node
-            node.text?.let { if (it.isNotBlank()) texts.add(it.toString()) }
-            node.contentDescription?.let { if (it.isNotBlank()) texts.add(it.toString()) }
+    private fun extractCallTitle(event: AccessibilityEvent): String {
+        val rootNode = rootInActiveWindow ?: return "Phone Call"
 
-            // Recursively get text from children
-            for (i in 0 until node.childCount) {
-                val child = node.getChild(i)
-                if (child != null) {
-                    texts.addAll(extractAllTextsFromNode(child))
-                    child.recycle() // Important: recycle to avoid memory leaks
-                }
+        // Look for contact name or phone number
+        val contactNodes = findNodesBySelector(rootNode, listOf(
+            "android.widget.TextView",
+            "android.widget.EditText"
+        ))
+
+        for (node in contactNodes) {
+            val text = node.text?.toString()
+            if (text != null && isValidContactInfo(text)) {
+                return "Call: $text"
             }
-        } catch (e: Exception) {
-            Log.w(TAG, "Error extracting texts from node", e)
         }
 
-        return texts
+        return "Phone Call"
     }
 
-    private fun findBestTitle(texts: List<String>, packageName: String): String {
-        if (texts.isEmpty()) return ""
-
-        // Filter out system UI and short texts
-        val filteredTexts = texts.filter { text ->
-            !isSystemUIText(text) &&
-                    text.length > 5 &&
-                    text.length < 150 && // Reasonable title length
-                    !text.matches(Regex("^[0-9:]+$")) && // Not just timestamps
-                    !text.matches(Regex("^[0-9]+$")) // Not just numbers
-        }
-
-        if (filteredTexts.isEmpty()) return ""
-
-        // For YouTube, prioritize texts that look like video titles
-        if (packageName == "com.google.android.youtube") {
-            filteredTexts.find { isLikelyVideoTitle(it) }?.let { return it }
-        }
-
-        // Return the longest meaningful text as it's most likely to be a title
-        return filteredTexts.maxByOrNull { it.length } ?: filteredTexts.first()
+    private fun isValidContactInfo(text: String): Boolean {
+        // Check if it's a valid contact name or phone number
+        return text.length > 2 &&
+                !text.contains("Call") &&
+                !text.contains("End") &&
+                !text.contains("Mute") &&
+                !text.matches(Regex("\\d{1,2}:\\d{2}")) // Not call duration
     }
 
-    private fun isLikelyVideoTitle(text: String): Boolean {
-        // YouTube titles are usually between 15-100 characters
-        if (text.length < 15 || text.length > 100) return false
+    private fun extractWhatsAppTitle(event: AccessibilityEvent): String {
+        val text = event.text?.toString() ?: return "WhatsApp"
 
-        // Exclude common UI elements (more comprehensive list)
-        val excludePatterns = listOf(
-            "subscribe", "notification", "menu", "search", "home", "library",
-            "liked", "watch later", "history", "settings", "help", "send feedback",
-            "youtube", "google", "sign in", "create", "upload", "shorts", "live",
-            "comments", "like", "share", "download", "playlist", "channel",
-            "views", "ago", "premium", "music", "kids", "tv", "studio",
-            "recommended", "trending", "subscriptions", "browse"
+        // Filter out UI noise
+        if (isWhatsAppUIElement(text)) {
+            return "WhatsApp Chat"
+        }
+
+        // Extract chat name or meaningful content
+        return when {
+            text.contains(":") && text.length < 100 -> "Chat: ${text.substringBefore(":")}"
+            text.length < 50 -> text
+            else -> "WhatsApp Chat"
+        }
+    }
+
+    private fun isWhatsAppUIElement(text: String): Boolean {
+        val uiElements = listOf(
+            "Voice message", "Double tap", "slide left", "slide up",
+            "Type a message", "Camera", "Microphone"
+        )
+        return uiElements.any { text.contains(it, ignoreCase = true) }
+    }
+
+    private fun extractInstagramTitle(event: AccessibilityEvent): String {
+        val text = event.text?.toString() ?: return "Instagram"
+
+        // Filter out common Instagram UI elements
+        if (isInstagramUIElement(text)) {
+            return "Instagram Feed"
+        }
+
+        return when {
+            text.contains("said") -> "Instagram Comment"
+            text.contains("@") && text.length < 50 -> "Profile: $text"
+            text.length < 100 -> text
+            else -> "Instagram Feed"
+        }
+    }
+
+    private fun isInstagramUIElement(text: String): Boolean {
+        val uiElements = listOf(
+            "Double tap to like", "likes", "ago", "Follow",
+            "Following", "View profile", "Message"
+        )
+        return uiElements.any { text.contains(it, ignoreCase = true) }
+    }
+
+    private fun extractBrowserTitle(event: AccessibilityEvent): String {
+        val rootNode = rootInActiveWindow ?: return "Web Page"
+
+        // Look for page title in address bar or title element
+        val titleNodes = findNodesBySelector(rootNode, listOf(
+            "android.widget.EditText", // Address bar
+            "android.widget.TextView"  // Page title
+        ))
+
+        for (node in titleNodes) {
+            val text = node.text?.toString()
+            if (text != null && isValidWebTitle(text)) {
+                return text
+            }
+        }
+
+        return event.text?.toString() ?: "Web Page"
+    }
+
+    private fun isValidWebTitle(text: String): Boolean {
+        return text.length > 5 &&
+                !text.startsWith("http") &&
+                !text.contains("Search") &&
+                !text.contains("Address bar")
+    }
+
+    private fun extractGenericTitle(event: AccessibilityEvent): String {
+        val text = event.text?.toString() ?: return "Unknown Content"
+
+        // Return first meaningful text that's not too long
+        return when {
+            text.length <= 100 -> text
+            else -> text.substring(0, 97) + "..."
+        }
+    }
+
+    private fun findNodesBySelector(root: AccessibilityNodeInfo, classNames: List<String>): List<AccessibilityNodeInfo> {
+        val nodes = mutableListOf<AccessibilityNodeInfo>()
+
+        fun traverse(node: AccessibilityNodeInfo) {
+            if (classNames.contains(node.className?.toString())) {
+                nodes.add(node)
+            }
+            for (i in 0 until node.childCount) {
+                node.getChild(i)?.let { traverse(it) }
+            }
+        }
+
+        traverse(root)
+        return nodes
+    }
+
+    private fun isSystemNoise(text: String): Boolean {
+        val noisePatterns = listOf(
+            "Signal strength:", "Today:", "This month:", "MB", "GB", "5G+", "4G",
+            "Double tap and hold", "Button.", "Expand", "Collapse",
+            "Uninstalling will remove", "Star rating:", "Install",
+            "More connectivity options", "Fingerprints, face data"
         )
 
-        val lowerText = text.lowercase()
-        if (excludePatterns.any { lowerText.contains(it) }) return false
-
-        // Good indicators of video titles
-        return text.any { it.isLetter() } && // Contains letters
-                !text.startsWith("http") && // Not a URL
-                !text.contains("@") && // Not an email
-                text.split(" ").size >= 3 && // At least 3 words
-                !text.all { it.isDigit() || it.isWhitespace() || it in ":-" } // Not just time/numbers
+        return noisePatterns.any { text.contains(it, ignoreCase = true) } ||
+                text.matches(Regex("\\d+\\.\\d+\\s*(MB|GB)")) ||
+                text.matches(Regex("\\d+ out of \\d+ bars?"))
     }
 
-    private fun isSystemUIText(text: String): Boolean {
-        val systemTexts = listOf(
-            "system ui", "systemui", "navigation bar", "status bar", "notification",
-            "back", "home", "recent", "menu", "search", "keyboard", "ime",
-            "android", "launcher", "quicksettings", "recents", "overview"
-        )
-
-        val lowerText = text.lowercase()
-        return systemTexts.any { lowerText.contains(it) } ||
-                text.length < 3 ||
-                text.matches(Regex("^[^a-zA-Z0-9]*$")) // Only special characters
-    }
+    override fun onInterrupt() { Log.d(TAG, "Interrupt"); endCurrentSession() }
+    override fun onDestroy() { Log.d(TAG, "Destroy"); endCurrentSession(); serviceScope.cancel(); super.onDestroy() }
 }
