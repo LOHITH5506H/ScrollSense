@@ -83,12 +83,19 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Apply bottom insets+nav height padding to fragment container
+        // Apply bottom insets so content isn't hidden behind the sticky bottom nav.
+        // Uses max(system bars, IME) + bottom nav height, and reapplies when nav lays out.
         ViewCompat.setOnApplyWindowInsetsListener(binding.fragmentContainer) { v, insets ->
             val sys = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+            val insetBottom = maxOf(sys.bottom, ime.bottom)
             val navH = binding.bottomNavigation.height
-            v.updatePadding(bottom = sys.bottom + navH)
+            v.updatePadding(bottom = insetBottom + navH)
             insets
+        }
+        // Re-apply insets after the bottom nav has measured, so height is included.
+        binding.bottomNavigation.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            ViewCompat.requestApplyInsets(binding.fragmentContainer)
         }
 
         initializeServices()

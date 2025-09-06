@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.lohith.scrollsense.MainActivity
@@ -41,6 +42,10 @@ class DetailedStatsFragment : Fragment() {
         binding.categoryStatsRecyclerView.apply {
             layoutManager = LinearLayoutManager(context)
             adapter = categoryStatsAdapter
+            // Ensure last items are not hidden under sticky bottom nav
+            clipToPadding = false
+            val extra = (16 * resources.displayMetrics.density).toInt() * 2 // ~32dp
+            updatePadding(bottom = paddingBottom + extra)
         }
     }
 

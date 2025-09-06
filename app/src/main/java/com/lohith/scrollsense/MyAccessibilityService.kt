@@ -28,6 +28,8 @@ class MyAccessibilityService : AccessibilityService() {
     private var currentEventId: Long? = null
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var lastExtendUpdate: Long = 0L
+    // Track current content category to create per-category segments
+    private var currentCategory: String? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -41,11 +43,23 @@ class MyAccessibilityService : AccessibilityService() {
         val now = System.currentTimeMillis()
         Log.d(TAG, "Event type=${event.eventType} pkg=$packageName source=${event.className}")
 
-        // If within same package, extend session periodically
+        val screenTitle = extractMeaningfulTitle(event, packageName)
+        if (isSystemNoise(screenTitle)) return
+
+        // If we are in the same package, check if category changed; if so, end/start a new segment.
         if (packageName == currentPackage) {
+            val newCategory = CategoryClassifier.classifyContent(screenTitle, packageName)
+
+            if (newCategory != currentCategory) {
+                // Close previous segment and start a new one with the new category
+                endCurrentSession(now)
+                startNewSession(packageName, screenTitle, newCategory, now)
+                return
+            }
+
+            // Same category: extend periodically to keep charts fresh
             val elapsed = now - sessionStart
             if (elapsed >= 1000) { // ignore sub-second noise
-                // Extend every 5s to keep charts relatively fresh
                 if (now - lastExtendUpdate >= 5000) {
                     extendCurrentSession(now)
                     lastExtendUpdate = now
@@ -54,27 +68,26 @@ class MyAccessibilityService : AccessibilityService() {
             return // don't start new session
         }
 
-        val screenTitle = extractMeaningfulTitle(event, packageName)
-        if (isSystemNoise(screenTitle)) return
-
-        // Close any previous session (ensures duration written)
+        // Package changed: close any previous session and start a new one
         if (currentPackage != null && packageName != currentPackage) {
             endCurrentSession(now)
         }
 
-        startNewSession(packageName, screenTitle, now)
+        val initialCategory = CategoryClassifier.classifyContent(screenTitle, packageName)
+        startNewSession(packageName, screenTitle, initialCategory, now)
     }
 
     private fun packageName(): String = applicationContext.packageName
 
-    private fun startNewSession(packageName: String, screenTitle: String, startTime: Long) {
-        Log.d(TAG, "Start session pkg=$packageName title=$screenTitle @${startTime}")
+    // Overload: start with explicit category to support segmenting when category changes
+    private fun startNewSession(packageName: String, screenTitle: String, category: String, startTime: Long) {
+        Log.d(TAG, "Start session pkg=$packageName title=$screenTitle category=$category @${startTime}")
         currentPackage = packageName
+        currentCategory = category
         sessionStart = startTime
         lastExtendUpdate = startTime
 
         val appLabel = PackageNameHelper.getAppLabel(this, packageName)
-        val category = CategoryClassifier.classifyContent(screenTitle, packageName)
 
         val usageEvent = UsageEvent(
             packageName = packageName,
@@ -119,6 +132,7 @@ class MyAccessibilityService : AccessibilityService() {
             Log.d(TAG, "Discard short session id=$id duration=$duration ms (<300ms)")
             currentEventId = null
             currentPackage = null
+            currentCategory = null
             sessionStart = 0
             return
         }
@@ -132,6 +146,7 @@ class MyAccessibilityService : AccessibilityService() {
         }
         currentEventId = null
         currentPackage = null
+        currentCategory = null
         sessionStart = 0
     }
 

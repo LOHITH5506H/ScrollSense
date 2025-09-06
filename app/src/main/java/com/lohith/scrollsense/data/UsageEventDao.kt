@@ -27,6 +27,16 @@ interface UsageEventDao {
     @Query("SELECT category AS category, SUM(durationMs) AS totalDuration FROM usage_events WHERE startTime >= :startTime GROUP BY category ORDER BY totalDuration DESC")
     suspend fun getCategoryDurationsSince(startTime: Long): List<CategoryDuration>
 
+    // New: aggregate durations grouped by app and category for stacked charts
+    @Query("""
+        SELECT appLabel AS appLabel, category AS category, SUM(durationMs) AS totalDuration
+        FROM usage_events
+        WHERE startTime >= :startTime
+        GROUP BY appLabel, category
+        ORDER BY appLabel ASC, totalDuration DESC
+    """)
+    suspend fun getAppCategoryDurationsSince(startTime: Long): List<AppCategoryDuration>
+
     // New: fetch all events overlapping a [start, end) window
     @Query("SELECT * FROM usage_events WHERE endTime > :start AND startTime < :end")
     suspend fun getEventsOverlapping(start: Long, end: Long): List<UsageEvent>
@@ -52,6 +62,13 @@ data class CategoryStat(
 )
 
 data class CategoryDuration(
+    val category: String,
+    val totalDuration: Long
+)
+
+// New data class backing the stacked chart aggregation
+data class AppCategoryDuration(
+    val appLabel: String,
     val category: String,
     val totalDuration: Long
 )

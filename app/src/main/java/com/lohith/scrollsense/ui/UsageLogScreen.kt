@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lohith.scrollsense.data.UsageEvent
+import com.lohith.scrollsense.viewmodel.ChartViewModel
 import com.lohith.scrollsense.ui.components.*
 import com.lohith.scrollsense.viewmodel.UsageViewModel
 import java.text.SimpleDateFormat
@@ -369,6 +370,9 @@ fun ChartsContent(
     categoryStats: Map<String, Long>,
     onSegmentClick: (String) -> Unit
 ) {
+    val chartVM: ChartViewModel = viewModel()
+    val appCategory = chartVM.appCategoryDurations.collectAsState().value
+
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -447,6 +451,33 @@ fun ChartsContent(
                             )
                         }
                     }
+                }
+            }
+        }
+
+        // Stacked per-app by category (duration)
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(340.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = "Time by App and Category",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    StackedBarChart(
+                        rows = appCategory,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
             }
         }

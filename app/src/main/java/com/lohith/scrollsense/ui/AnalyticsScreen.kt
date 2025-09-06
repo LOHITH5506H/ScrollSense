@@ -16,6 +16,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lohith.scrollsense.viewmodel.ChartViewModel
 import com.lohith.scrollsense.ui.components.PieChart
 import com.lohith.scrollsense.ui.components.BarChart
+import com.lohith.scrollsense.ui.components.StackedBarChart
 
 /**
  * Dedicated analytics screen (separate from UsageLogScreen) that focuses purely on
@@ -27,6 +28,7 @@ fun AnalyticsScreen(
 ) {
     val appUsage by viewModel.appUsage.collectAsState()
     val categoryUsage by viewModel.categoryUsage.collectAsState()
+    val appCategory by viewModel.appCategoryDurations.collectAsState()
 
     LazyColumn(
         modifier = Modifier
@@ -70,7 +72,7 @@ fun AnalyticsScreen(
             }
         }
 
-        // Category breakdown
+        // Category breakdown (counts)
         item {
             Card(
                 modifier = Modifier
@@ -95,6 +97,27 @@ fun AnalyticsScreen(
                 }
             }
         }
+
+        // Stacked per-app by category (duration)
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(340.dp)
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Time by App and Category",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    StackedBarChart(
+                        rows = appCategory,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+        }
     }
 }
-

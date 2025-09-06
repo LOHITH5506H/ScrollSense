@@ -5,6 +5,7 @@ package com.lohith.scrollsense.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.lohith.scrollsense.data.AppCategoryDuration
 import com.lohith.scrollsense.data.AppDatabase
 import kotlinx.coroutines.flow.*
 import java.util.*
@@ -34,6 +35,14 @@ class ChartViewModel(application: Application) : AndroidViewModel(application) {
         }
         .map { list -> list.associate { it.category to it.count } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    // New: durations grouped by app and category for stacked bar chart
+    val appCategoryDurations: StateFlow<List<AppCategoryDuration>> = _range
+        .flatMapLatest { r ->
+            val start = rangeStart(r)
+            flow { emit(dao.getAppCategoryDurationsSince(start)) }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun setRange(r: String) { _range.value = r }
 

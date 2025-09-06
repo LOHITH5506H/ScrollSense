@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -19,6 +20,7 @@ import com.github.mikephil.charting.data.*
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
 import com.github.mikephil.charting.formatter.ValueFormatter
 import com.github.mikephil.charting.components.AxisBase
+import com.github.mikephil.charting.formatter.PercentFormatter
 import com.lohith.scrollsense.MainActivity
 import com.lohith.scrollsense.R
 import com.lohith.scrollsense.adapters.AppUsageAdapter
@@ -70,6 +72,10 @@ class DashboardFragment : Fragment() {
             layoutManager = LinearLayoutManager(context)
             adapter = appUsageAdapter
             isNestedScrollingEnabled = false
+            // Ensure last items are not obscured by the sticky bottom nav
+            clipToPadding = false
+            val extra = (16 * resources.displayMetrics.density).toInt() * 2 // ~32dp
+            updatePadding(bottom = paddingBottom + extra)
         }
     }
 
@@ -224,19 +230,11 @@ class DashboardFragment : Fragment() {
                 valueTextSize = 11f
                 sliceSpace = 2f
                 selectionShift = 8f
-
-                valueFormatter = object : ValueFormatter() {
-                    override fun getFormattedValue(value: Float): String {
-                        return if (value < 0.1f) {
-                            "${(value * 60).toInt()}m"
-                        } else {
-                            "${value.format(1)}h"
-                        }
-                    }
-                }
             }
 
-            val pieData = PieData(dataSet)
+            val pieData = PieData(dataSet).apply {
+                setValueFormatter(PercentFormatter(binding.pieChart))
+            }
             binding.pieChart.data = pieData
             binding.pieChart.highlightValues(null)
             binding.pieChart.invalidate()
