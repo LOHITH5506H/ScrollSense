@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="4dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="2dp"
+    app:cardBackgroundColor="@color/surface"
+    app:strokeColor="@color/outline_variant"
+    app:strokeWidth="1dp"
+    android:foreground="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp">
+
+        <!-- Rank Badge -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/rankBadge"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:cardBackgroundColor="@color/primary"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <TextView
+                android:id="@+id/rankText"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:text="#1"
+                android:textColor="@color/on_primary"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                tools:text="#1" />
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Category Indicator -->
+        <View
+            android:id="@+id/categoryIndicator"
+            android:layout_width="4dp"
+            android:layout_height="0dp"
+            android:background="@color/primary"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- App Name -->
+        <TextView
+            android:id="@+id/appNameText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="8dp"
+            android:text="App Name"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/on_surface"
+            android:maxLines="1"
+            android:ellipsize="end"
+            app:layout_constraintEnd_toStartOf="@id/usageTimeText"
+            app:layout_constraintStart_toEndOf="@id/rankBadge"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:text="Instagram" />
+
+        <!-- Category -->
+        <TextView
+            android:id="@+id/categoryText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="2dp"
+            android:layout_marginEnd="8dp"
+            android:text="Category"
+            android:textSize="12sp"
+            android:textColor="@color/on_surface_variant"
+            android:maxLines="1"
+            android:ellipsize="end"
+            app:layout_constraintEnd_toStartOf="@id/usagePercentageText"
+            app:layout_constraintStart_toEndOf="@id/rankBadge"
+            app:layout_constraintTop_toBottomOf="@id/appNameText"
+            tools:text="Social Media" />
+
+        <!-- Usage Time -->
+        <TextView
+            android:id="@+id/usageTimeText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:text="2h 30m"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="@color/primary"
+            app:layout_constraintEnd_toStartOf="@id/categoryIndicator"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:text="2h 30m" />
+
+        <!-- Usage Percentage -->
+        <TextView
+            android:id="@+id/usagePercentageText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:layout_marginEnd="8dp"
+            android:text="25.5%"
+            android:textSize="12sp"
+            android:textColor="@color/on_surface_variant"
+            app:layout_constraintEnd_toStartOf="@id/categoryIndicator"
+            app:layout_constraintTop_toBottomOf="@id/usageTimeText"
+            tools:text="25.5%" />
+
+        <!-- Launch Count -->
+        <TextView
+            android:id="@+id/launchCountText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="8dp"
+            android:text="15 launches"
+            android:textSize="11sp"
+            android:textColor="@color/on_surface_variant"
+            android:drawableStart="@drawable/ic_launch"
+            android:drawablePadding="4dp"
+            app:drawableTint="@color/on_surface_variant"
+            app:layout_constraintEnd_toStartOf="@id/categoryIndicator"
+            app:layout_constraintStart_toEndOf="@id/rankBadge"
+            app:layout_constraintTop_toBottomOf="@id/categoryText"
+            tools:text="15 launches" />
+
+        <!-- Usage Progress Bar -->
+        <ProgressBar
+            android:id="@+id/usageProgressBar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="0dp"
+            android:layout_height="4dp"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="8dp"
+            android:max="100"
+            android:progress="75"
+            android:progressTint="@color/primary"
+            android:progressBackgroundTint="@color/outline_variant"
+            app:layout_constraintEnd_toStartOf="@id/categoryIndicator"
+            app:layout_constraintStart_toEndOf="@id/rankBadge"
+            app:layout_constraintTop_toBottomOf="@id/launchCountText"
+            tools:progress="75" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</com.google.android.material.card.MaterialCardView>

@@ -138,9 +138,11 @@ class MyAccessibilityService : AccessibilityService() {
     // Add better text extraction logic
     private fun extractMeaningfulTitle(event: AccessibilityEvent, packageName: String): String {
         return when {
-            packageName.contains("youtube") -> extractYouTubeTitle(event)
-            packageName.contains("incallui") -> extractCallTitle(event)
-            packageName.contains("whatsapp") -> extractWhatsAppTitle(event)
+            packageName.contains("youtube", ignoreCase = true) -> extractYouTubeTitle(event)
+            packageName.contains("instagram", ignoreCase = true) -> extractInstagramTitle(event)
+            packageName.contains("chrome", ignoreCase = true) || packageName.contains("browser", ignoreCase = true) -> extractBrowserTitle(event)
+            packageName.contains("incallui", ignoreCase = true) -> extractCallTitle(event)
+            packageName.contains("whatsapp", ignoreCase = true) -> extractWhatsAppTitle(event)
             else -> extractGenericTitle(event)
         }
     }

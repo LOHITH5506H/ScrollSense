@@ -59,6 +59,20 @@ class CategoryClassifier {
                 )
             ),
 
+            "comedy" to mapOf(
+                "en" to listOf("comedy", "funny", "humor", "jokes", "standup", "sketch", "parody"),
+                "hi" to listOf("कॉमेडी", "हास्य", "मज़ेदार", "चुटकुले"),
+                "te" to listOf("కామెడీ", "హాస్యం", "ఫన్నీ"),
+                "es" to listOf("comedia", "gracioso", "humor", "bromas")
+            ),
+
+            "fashion" to mapOf(
+                "en" to listOf("fashion", "style", "outfit", "makeup", "beauty", "skincare", "haul", "lookbook"),
+                "hi" to listOf("फ़ैशन", "स्टाइल", "मेकअप", "सौंदर्य"),
+                "te" to listOf("ఫ్యాషన్", "శైలి", "మేకప్", "బ్యూటీ"),
+                "es" to listOf("moda", "estilo", "maquillaje", "belleza")
+            ),
+
             "technology" to mapOf(
                 "en" to listOf(
                     "technology", "tech", "programming", "code", "software", "hardware", "computer",
@@ -298,8 +312,22 @@ class CategoryClassifier {
                 }
             }
 
-            // Return category with highest score
-            return scores.maxByOrNull { it.value }?.key ?: "other"
+            // Prefer specific subcategories over broad ones when close
+            val sorted = scores.toList().sortedByDescending { it.second }
+            return when {
+                sorted.isEmpty() -> "other"
+                sorted.size >= 2 && sorted[0].second == sorted[1].second -> {
+                    // tie-breaker: if entertainment vs comedy/fashion/adult, prefer specific
+                    val top = sorted.map { it.first }
+                    when {
+                        "comedy" in top -> "comedy"
+                        "fashion" in top -> "fashion"
+                        "adult" in top -> "adult"
+                        else -> sorted[0].first
+                    }
+                }
+                else -> sorted[0].first
+            }
         }
 
         fun getAllCategories(): List<String> {

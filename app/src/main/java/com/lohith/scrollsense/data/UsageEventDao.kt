@@ -24,10 +24,16 @@ interface UsageEventDao {
     @Query("SELECT category, COUNT(*) as count FROM usage_events WHERE startTime >= :startTime GROUP BY category ORDER BY count DESC")
     fun getCategoryStats(startTime: Long): Flow<List<CategoryStat>>
 
+    @Query("SELECT category AS category, SUM(durationMs) AS totalDuration FROM usage_events WHERE startTime >= :startTime GROUP BY category ORDER BY totalDuration DESC")
+    suspend fun getCategoryDurationsSince(startTime: Long): List<CategoryDuration>
+
+    // New: fetch all events overlapping a [start, end) window
+    @Query("SELECT * FROM usage_events WHERE endTime > :start AND startTime < :end")
+    suspend fun getEventsOverlapping(start: Long, end: Long): List<UsageEvent>
+
     @Query("UPDATE usage_events SET durationMs = :duration WHERE id = (SELECT MAX(id) FROM usage_events)")
     suspend fun updateLastEventDuration(duration: Long)
 
-    // New precise update using stored id
     @Query("UPDATE usage_events SET endTime = :endTime, durationMs = :duration WHERE id = :id")
     suspend fun updateEventEnd(id: Long, endTime: Long, duration: Long)
 
@@ -43,4 +49,9 @@ data class AppUsageStat(
 data class CategoryStat(
     val category: String,
     val count: Long
+)
+
+data class CategoryDuration(
+    val category: String,
+    val totalDuration: Long
 )
