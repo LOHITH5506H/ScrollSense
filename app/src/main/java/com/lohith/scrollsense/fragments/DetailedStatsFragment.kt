@@ -4,6 +4,8 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -17,6 +19,7 @@ class DetailedStatsFragment : Fragment() {
     private val binding get() = _binding!!
 
     private lateinit var categoryStatsAdapter: CategoryStatsAdapter
+    private var bottomNavLayoutListener: View.OnLayoutChangeListener? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -29,6 +32,27 @@ class DetailedStatsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        val rootView = binding.root
+        val originalBottomPadding = rootView.paddingBottom
+
+        // Prevent sticky bottom navbar from covering content
+        ViewCompat.setOnApplyWindowInsetsListener(rootView) { v, insets ->
+            val sys = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+            val insetBottom = maxOf(sys.bottom, ime.bottom)
+            val bottomNav = (activity as? com.lohith.scrollsense.MainActivity)?.findViewById<com.google.android.material.bottomnavigation.BottomNavigationView>(com.lohith.scrollsense.R.id.bottomNavigation)
+            val navH = bottomNav?.height ?: 0
+            v.updatePadding(bottom = originalBottomPadding + insetBottom + navH)
+            insets
+        }
+        val bottomNav = (activity as? com.lohith.scrollsense.MainActivity)?.findViewById<com.google.android.material.bottomnavigation.BottomNavigationView>(com.lohith.scrollsense.R.id.bottomNavigation)
+        bottomNavLayoutListener = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            if (rootView.isAttachedToWindow) {
+                ViewCompat.requestApplyInsets(rootView)
+            }
+        }
+        bottomNav?.addOnLayoutChangeListener(bottomNavLayoutListener)
 
         setupRecyclerView()
         observeData()
@@ -101,6 +125,9 @@ class DetailedStatsFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        val bottomNav = (activity as? com.lohith.scrollsense.MainActivity)?.findViewById<com.google.android.material.bottomnavigation.BottomNavigationView>(com.lohith.scrollsense.R.id.bottomNavigation)
+        bottomNavLayoutListener?.let { bottomNav?.removeOnLayoutChangeListener(it) }
+        bottomNavLayoutListener = null
         _binding = null
     }
 

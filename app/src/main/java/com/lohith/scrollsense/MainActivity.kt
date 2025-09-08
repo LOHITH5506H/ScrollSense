@@ -264,11 +264,14 @@ class MainActivity : AppCompatActivity() {
                 // Categorize apps by package/name for the top-apps list (kept as-is)
                 val categorizedApps = geminiAIService.categorizeApps(appUsageList)
 
-                // Build content-aware categories using captured screen titles across ALL apps
-                val contentCategories = buildContentAwareCategories(days = 1)
+                // First publish the apps so UI can show summary fallback immediately
+                mainViewModel.updateAppUsageData(categorizedApps)
 
-                // Update ViewModel with app list and content-aware categories
-                mainViewModel.updateData(categorizedApps, contentCategories)
+                // Build content-aware categories using captured screen titles across ALL apps
+                val contentCategories = buildContentAwareCategories(days = 1, fallbackApps = categorizedApps)
+
+                // Update ViewModel with content-aware categories
+                mainViewModel.updateCategoryData(contentCategories)
 
                 showSnackbar("Data refreshed successfully!")
 
@@ -281,7 +284,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun buildContentAwareCategories(days: Int): List<CategoryData> {
+    private suspend fun buildContentAwareCategories(days: Int, fallbackApps: List<AppUsageData>): List<CategoryData> {
         val (startTime, endTime) = getDayBounds(daysAgo = 0)
 
         // Load events overlapping today and clamp durations to [start, end)
@@ -292,9 +295,9 @@ class MainActivity : AppCompatActivity() {
             emptyList()
         }
 
+        // If we don't have any content-aware events yet, fall back to app-based categories
         if (events.isEmpty()) {
-            val apps = mainViewModel.appUsageData.value ?: emptyList()
-            return AppCategorizer.categorizeApps(apps)
+            return AppCategorizer.categorizeApps(fallbackApps)
         }
 
         val byCategory = mutableMapOf<String, Long>()
@@ -303,7 +306,11 @@ class MainActivity : AppCompatActivity() {
             val e = min(ev.endTime, endTime)
             val dur = (e - s).coerceAtLeast(0)
             if (dur > 0) {
-                val displayName = mapClassifierCategoryToDisplay(ev.category)
+                val displayName = if (ev.category.equals("games", ignoreCase = true) && ev.subcategory.isNotBlank()) {
+                    "Games: ${ev.subcategory}"
+                } else {
+                    mapClassifierCategoryToDisplay(ev.category)
+                }
                 byCategory[displayName] = (byCategory[displayName] ?: 0L) + dur
             }
         }
@@ -316,10 +323,11 @@ class MainActivity : AppCompatActivity() {
                 color = CategoryData.getDefaultColorForCategory(displayName)
             )
         }
+        .filter { it.hasSignificantUsage() }
+        .sortedByDescending { it.totalTime }
 
-        return categoryData
-            .filter { it.hasSignificantUsage() }
-            .sortedByDescending { it.totalTime }
+        // If content-derived categories are too small (all filtered out), use app-based categories
+        return if (categoryData.isEmpty()) AppCategorizer.categorizeApps(fallbackApps) else categoryData
     }
 
     private fun mapClassifierCategoryToDisplay(raw: String): String {
@@ -340,6 +348,7 @@ class MainActivity : AppCompatActivity() {
             "navigation" -> "Navigation"
             "productivity" -> "Productivity"
             "finance" -> "Finance"
+            "games" -> "Games"
             else -> "Other"
         }
     }

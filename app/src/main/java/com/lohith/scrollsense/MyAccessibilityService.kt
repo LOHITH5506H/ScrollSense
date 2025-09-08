@@ -30,6 +30,7 @@ class MyAccessibilityService : AccessibilityService() {
     private var lastExtendUpdate: Long = 0L
     // Track current content category to create per-category segments
     private var currentCategory: String? = null
+    private var currentSubcategory: String? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -46,26 +47,30 @@ class MyAccessibilityService : AccessibilityService() {
         val screenTitle = extractMeaningfulTitle(event, packageName)
         if (isSystemNoise(screenTitle)) return
 
-        // If we are in the same package, check if category changed; if so, end/start a new segment.
-        if (packageName == currentPackage) {
-            val newCategory = CategoryClassifier.classifyContent(screenTitle, packageName)
+        val detail = CategoryClassifier.getDetailedClassification(screenTitle, packageName)
+        val gameName = if (detail.category == "games") CategoryClassifier.guessGameName(packageName, screenTitle) else null
+        val detectedCategory = detail.category
+        val detectedSubcategory = gameName
 
-            if (newCategory != currentCategory) {
-                // Close previous segment and start a new one with the new category
+        // If we are in the same package, check if category (or game) changed; if so, end/start a new segment.
+        if (packageName == currentPackage) {
+            val changed = detectedCategory != currentCategory ||
+                    (detectedCategory == "games" && detectedSubcategory != currentSubcategory)
+            if (changed) {
                 endCurrentSession(now)
-                startNewSession(packageName, screenTitle, newCategory, now)
+                startNewSession(packageName, screenTitle, detectedCategory, detectedSubcategory, detail, now)
                 return
             }
 
-            // Same category: extend periodically to keep charts fresh
+            // Same classification: extend periodically to keep charts fresh
             val elapsed = now - sessionStart
-            if (elapsed >= 1000) { // ignore sub-second noise
+            if (elapsed >= 1000) {
                 if (now - lastExtendUpdate >= 5000) {
                     extendCurrentSession(now)
                     lastExtendUpdate = now
                 }
             }
-            return // don't start new session
+            return
         }
 
         // Package changed: close any previous session and start a new one
@@ -73,17 +78,17 @@ class MyAccessibilityService : AccessibilityService() {
             endCurrentSession(now)
         }
 
-        val initialCategory = CategoryClassifier.classifyContent(screenTitle, packageName)
-        startNewSession(packageName, screenTitle, initialCategory, now)
+        startNewSession(packageName, screenTitle, detectedCategory, detectedSubcategory, detail, now)
     }
 
     private fun packageName(): String = applicationContext.packageName
 
     // Overload: start with explicit category to support segmenting when category changes
-    private fun startNewSession(packageName: String, screenTitle: String, category: String, startTime: Long) {
-        Log.d(TAG, "Start session pkg=$packageName title=$screenTitle category=$category @${startTime}")
+    private fun startNewSession(packageName: String, screenTitle: String, category: String, subcategory: String?, detail: CategoryClassifier.ClassificationResult, startTime: Long) {
+        Log.d(TAG, "Start session pkg=$packageName title=$screenTitle category=$category sub=${subcategory ?: ""} @${startTime}")
         currentPackage = packageName
         currentCategory = category
+        currentSubcategory = subcategory
         sessionStart = startTime
         lastExtendUpdate = startTime
 
@@ -94,6 +99,9 @@ class MyAccessibilityService : AccessibilityService() {
             appLabel = appLabel,
             screenTitle = screenTitle,
             category = category,
+            subcategory = subcategory ?: "",
+            language = detail.language,
+            confidence = detail.confidence,
             startTime = startTime,
             endTime = startTime,
             durationMs = 0
@@ -128,11 +136,12 @@ class MyAccessibilityService : AccessibilityService() {
         val id = currentEventId ?: return
         if (sessionStart <= 0) return
         val duration = now - sessionStart
-        if (duration < 300) { // discard ultra-short sessions
+        if (duration < 300) {
             Log.d(TAG, "Discard short session id=$id duration=$duration ms (<300ms)")
             currentEventId = null
             currentPackage = null
             currentCategory = null
+            currentSubcategory = null
             sessionStart = 0
             return
         }
@@ -147,6 +156,7 @@ class MyAccessibilityService : AccessibilityService() {
         currentEventId = null
         currentPackage = null
         currentCategory = null
+        currentSubcategory = null
         sessionStart = 0
     }
 
@@ -299,24 +309,47 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     private fun extractGenericTitle(event: AccessibilityEvent): String {
-        val text = event.text?.toString() ?: return "Unknown Content"
+        val fromEvent = event.text?.toString()?.takeIf { it.isNotBlank() } ?: ""
+        val root = rootInActiveWindow
+        val fromTree = collectAllText(root)
+        val combined = (fromEvent + " " + fromTree).trim()
+        // Return a bounded-length snippet to avoid huge strings
+        return if (combined.length <= 200) combined else combined.substring(0, 200)
+    }
 
-        // Return first meaningful text that's not too long
-        return when {
-            text.length <= 100 -> text
-            else -> text.substring(0, 97) + "..."
+    private fun collectAllText(node: AccessibilityNodeInfo?): String {
+        if (node == null) return ""
+        val sb = StringBuilder()
+        fun dfs(n: AccessibilityNodeInfo?) {
+            if (n == null) return
+            try {
+                n.text?.toString()?.let { txt ->
+                    if (txt.isNotBlank()) sb.append(txt).append(' ')
+                }
+                val count = n.childCount
+                for (i in 0 until count) dfs(n.getChild(i))
+            } catch (_: Exception) {
+                // ignore stale/recycled nodes
+            }
         }
+        dfs(node)
+        return sb.toString()
     }
 
     private fun findNodesBySelector(root: AccessibilityNodeInfo, classNames: List<String>): List<AccessibilityNodeInfo> {
         val nodes = mutableListOf<AccessibilityNodeInfo>()
 
         fun traverse(node: AccessibilityNodeInfo) {
-            if (classNames.contains(node.className?.toString())) {
-                nodes.add(node)
-            }
-            for (i in 0 until node.childCount) {
-                node.getChild(i)?.let { traverse(it) }
+            try {
+                if (classNames.contains(node.className?.toString())) {
+                    nodes.add(node)
+                }
+                val count = node.childCount
+                for (i in 0 until count) {
+                    node.getChild(i)?.let { traverse(it) }
+                }
+            } catch (_: Exception) {
+                // ignore stale/recycled nodes
             }
         }
 

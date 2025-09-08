@@ -125,6 +125,12 @@ class GeminiAIService(private val context: Context) {
         )
     }
 
+    // Simple heuristic to decide if remote calls should be attempted
+    private fun isApiKeyConfigured(): Boolean {
+        val key = BuildConfig.GEMINI_API_KEY
+        return key.isNotBlank() && key.length >= 20 && !key.equals("YOUR_API_KEY", ignoreCase = true)
+    }
+
     // Cache for AI categorization results
     private val categoryCache = ConcurrentHashMap<String, String>()
 
@@ -165,6 +171,10 @@ class GeminiAIService(private val context: Context) {
     }
 
     private suspend fun categorizeWithAI(packageName: String, appName: String): String = withContext(Dispatchers.IO) {
+        // Short-circuit if API key isn't configured to avoid noisy failures
+        if (!isApiKeyConfigured()) {
+            throw IllegalStateException("Gemini API key not configured")
+        }
         val prompt = createCategorizationPrompt(packageName, appName)
 
         try {

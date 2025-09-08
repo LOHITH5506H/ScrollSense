@@ -18,7 +18,7 @@ android {
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "GEMINI_API_KEY", "\"paste-key-here\"")
+        buildConfigField("String", "GEMINI_API_KEY", "\"AIzaSyB-6uXrB2sBHo6dwSTWfNhdG06fslmLPKU\"")
     }
 
     buildTypes {

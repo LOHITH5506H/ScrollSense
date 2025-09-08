@@ -236,6 +236,22 @@ class CategoryClassifier {
                 "hi" to listOf("अन्य", "विविध", "सामान्य", "अज्ञात", "विभिन्न"),
                 "te" to listOf("ఇతర", "వివిధ", "సాధారణ", "తెలియని", "వైవిధ్యమైన"),
                 "es" to listOf("otro", "misceláneo", "general", "desconocido", "varios")
+            ),
+
+            // Add adult category to better capture sensitive content
+            "adult" to mapOf(
+                "en" to listOf("adult", "nsfw", "xxx", "porn", "erotic", "sex", "nude", "18+", "camgirl", "onlyfans"),
+                "hi" to listOf("वयस्क", "अश्लील", "सेक्स", "कामुक", "नग्न", "18+"),
+                "te" to listOf("వయోజన", "అశ్లీల", "సెక్స్", "ఎరోటిక్", "న్యూడ్", "18+"),
+                "es" to listOf("adulto", "nsfw", "xxx", "porno", "erótico", "sexo", "desnudo", "18+")
+            ),
+
+            // New: games
+            "games" to mapOf(
+                "en" to listOf("game", "games", "gaming", "play", "level", "mission", "battle", "match", "multiplayer", "ranked", "fps", "rpg", "strategy", "puzzle"),
+                "hi" to listOf("खेल", "गेम", "गेमिंग", "स्तर", "मिशन", "लड़ाई", "मैच"),
+                "te" to listOf("ఆట", "గేమ్", "గేమింగ్", "స్థాయి", "మిషన్", "యుద్ధం", "మ్యాచ్"),
+                "es" to listOf("juego", "juegos", "gaming", "nivel", "misión", "batalla", "partida")
             )
         )
 
@@ -261,19 +277,40 @@ class CategoryClassifier {
             "shopping" to "business",
             "banking" to "business",
             "fitness" to "sports",
-            "health" to "sports"
+            "health" to "sports",
+            // Added mappings for common media players and games
+            "vlc" to "entertainment",
+            "mxplayer" to "entertainment",
+            "viu" to "entertainment",
+            "jiotv" to "entertainment",
+            // Games → games
+            "freefire" to "games",
+            "garena" to "games",
+            "pubg" to "games",
+            "bgmi" to "games",
+            "codm" to "games",
+            "callofduty" to "games",
+            "asphalt" to "games",
+            "candycrush" to "games",
+            "genshin" to "games",
+            "roblox" to "games",
+            "minecraft" to "games",
+            "pokemon" to "games",
+            "clashofclans" to "games",
+            "clashroyale" to "games",
+            "fortnite" to "games"
         )
 
         fun classifyContent(text: String, packageName: String): String {
-            // First try package-based classification
-            val packageCategory = classifyByPackage(packageName)
-            if (packageCategory != "other") {
-                return packageCategory
-            }
+            // Prefer content-based classification first
+            val byContent = classifyByContent(text)
+            if (byContent != "other") return byContent
 
-            // Then try content-based classification
-            return classifyByContent(text)
+            // Fallback to package-based classification if content is inconclusive
+            val packageCategory = classifyByPackage(packageName)
+            return packageCategory
         }
+
 
         private fun classifyByPackage(packageName: String): String {
             val lowerPackage = packageName.lowercase()
@@ -317,9 +354,10 @@ class CategoryClassifier {
             return when {
                 sorted.isEmpty() -> "other"
                 sorted.size >= 2 && sorted[0].second == sorted[1].second -> {
-                    // tie-breaker: if entertainment vs comedy/fashion/adult, prefer specific
+                    // tie-breaker: prefer specific categories over broad ones
                     val top = sorted.map { it.first }
                     when {
+                        "games" in top -> "games"
                         "comedy" in top -> "comedy"
                         "fashion" in top -> "fashion"
                         "adult" in top -> "adult"
@@ -374,6 +412,32 @@ class CategoryClassifier {
             }
 
             return if (totalKeywords > 0) matches.toFloat() / totalKeywords else 0.0f
+        }
+
+        fun guessGameName(packageName: String, text: String): String? {
+            val lowerPkg = packageName.lowercase()
+            val lowerText = text.lowercase()
+            val known = listOf(
+                "freefire" to "Free Fire",
+                "garena" to "Free Fire",
+                "pubg" to "PUBG Mobile",
+                "bgmi" to "BGMI",
+                "codm" to "Call of Duty Mobile",
+                "callofduty" to "Call of Duty Mobile",
+                "asphalt" to "Asphalt",
+                "candycrush" to "Candy Crush",
+                "genshin" to "Genshin Impact",
+                "roblox" to "Roblox",
+                "minecraft" to "Minecraft",
+                "pokemon" to "Pokémon Go",
+                "clashofclans" to "Clash of Clans",
+                "clashroyale" to "Clash Royale",
+                "fortnite" to "Fortnite"
+            )
+            known.firstOrNull { (k, _) -> lowerPkg.contains(k) }?.let { return it.second }
+            known.firstOrNull { (k, _) -> lowerText.contains(k) }?.let { return it.second }
+            // fallback: look for generic words like "season", "ranked" and return "Game"
+            return null
         }
     }
 

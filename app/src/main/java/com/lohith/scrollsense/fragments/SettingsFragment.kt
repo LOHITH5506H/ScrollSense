@@ -8,6 +8,9 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.app.AlertDialog
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -21,6 +24,7 @@ class SettingsFragment : Fragment() {
 
     private var _binding: FragmentSettingsBinding? = null
     private val binding get() = _binding!!
+    private var bottomNavLayoutListener: View.OnLayoutChangeListener? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -33,6 +37,27 @@ class SettingsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        val rootView = binding.root
+        val originalBottomPadding = rootView.paddingBottom
+
+        // Prevent sticky bottom navbar from covering content
+        ViewCompat.setOnApplyWindowInsetsListener(rootView) { v, insets ->
+            val sys = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+            val insetBottom = kotlin.math.max(sys.bottom, ime.bottom)
+            val bottomNav = (activity as? com.lohith.scrollsense.MainActivity)?.findViewById<com.google.android.material.bottomnavigation.BottomNavigationView>(com.lohith.scrollsense.R.id.bottomNavigation)
+            val navH = bottomNav?.height ?: 0
+            v.updatePadding(bottom = originalBottomPadding + insetBottom + navH)
+            insets
+        }
+        val bottomNav = (activity as? com.lohith.scrollsense.MainActivity)?.findViewById<com.google.android.material.bottomnavigation.BottomNavigationView>(com.lohith.scrollsense.R.id.bottomNavigation)
+        bottomNavLayoutListener = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            if (rootView.isAttachedToWindow) {
+                ViewCompat.requestApplyInsets(rootView)
+            }
+        }
+        bottomNav?.addOnLayoutChangeListener(bottomNavLayoutListener)
 
         setupClickListeners()
         updateCacheInfo()
@@ -245,6 +270,9 @@ class SettingsFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        val bottomNav = (activity as? com.lohith.scrollsense.MainActivity)?.findViewById<com.google.android.material.bottomnavigation.BottomNavigationView>(com.lohith.scrollsense.R.id.bottomNavigation)
+        bottomNavLayoutListener?.let { bottomNav?.removeOnLayoutChangeListener(it) }
+        bottomNavLayoutListener = null
         _binding = null
     }
 }
