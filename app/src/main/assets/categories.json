@@ -1,0 +1,18 @@
+{
+  "Gaming": ["game", "gaming", "gameplay", "walkthrough", "livestream", "esports", "twitch", "fortnite", "valorant", "minecraft", "pubg", "bgmi", "gta", "fifa", "nintendo", "playstation", "xbox", "steam", "riot games", "blizzard", "khel", "khiladi"],
+  "Education": ["education", "learn", "tutorial", "course", "study", "lecture", "documentary", "science", "math", "history", "coding", "programming", "school", "college", "university", "udemy", "coursera", "khan academy", "byju's", "unacademy", "edx", "skillshare", "shiksha", "padhai", "gyan", "vidya"],
+  "Technology": ["tech", "technology", "review", "unboxing", "gadget", "software", "hardware", "developer", "ai", "crypto", "smartphone", "laptop", "android", "ios", "windows", "linux", "programming", "code", "cybersecurity"],
+  "Entertainment": ["entertainment", "movie", "trailer", "funny", "comedy", "vlog", "vlogger", "series", "episode", "show", "netflix", "prime video", "hotstar", "zee5", "reaction", "prank", "stand-up", "celebrity", "gossip", "hollywood", "bollywood", "tollywood", "manoranjan"],
+  "Music": ["music", "song", "lyrics", "official video", "cover", "remix", "album", "concert", "spotify", "wynk", "gaana", "jiosaavn", "apple music", "youtube music", "sangeet", "gana"],
+  "News": ["news", "politics", "breaking", "update", "current affairs", "headlines", "report", "analysis", "elections", "government", "parliament", "samachar", "khabar"],
+  "Sports": ["sports", "cricket", "football", "highlights", "match", "game", "nba", "ipl", "world cup", "tennis", "formula 1", "wwe", "ufc", "khel", "khiladi"],
+  "Business": ["business", "finance", "stocks", "investment", "marketing", "entrepreneur", "startup", "economy", "crypto", "nft", "wall street", "dalal street", "vyapar", "arthashastra"],
+  "Lifestyle": ["lifestyle", "vlog", "daily vlog", "fashion", "makeup", "travel", "routine", "health", "fitness", "workout", "yoga", "meditation", "self-help", "motivation", "jeevan shaili"],
+  "Food": ["food", "recipe", "cooking", "restaurant", "mukbang", "asmr", "kitchen", "street food", "bhojan", "khana", "rasoi"],
+  "Art & Culture": ["art", "culture", "dance", "painting", "history", "theatre", "craft", "diy", "photography", "design", "architecture", "kala", "sanskriti"],
+  "Shopping": ["shopping", "haul", "sale", "deals", "offers", "amazon", "flipkart", "myntra", "fashion", "online shopping", "kharidari"],
+  "Social Media": ["instagram", "facebook", "twitter", "snapchat", "tiktok", "linkedin", "reddit", "social media"],
+  "Communication": ["whatsapp", "telegram", "signal", "discord", "zoom", "google meet", "messages", "email", "gmail", "outlook", "sanchar", "baat cheet"],
+  "Adult Content": ["porn", "adult", "xxx", "sexy", "nsfw", "erotic", "hentai", "onlyfans"],
+  "Other": []
+}
