@@ -1,106 +1,117 @@
-package com.lohith.scrollsense.viewmodels
+@file:OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
-import com.lohith.scrollsense.data.models.AppUsageData
-import com.lohith.scrollsense.data.models.CategoryData
+package com.lohith.scrollsense.viewmodel
 
-class MainViewModel : ViewModel() {
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.lohith.scrollsense.data.AppDatabase
+import com.lohith.scrollsense.data.UsageEvent
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import java.util.Calendar
 
-    private val _appUsageData = MutableLiveData<List<AppUsageData>>()
-    val appUsageData: LiveData<List<AppUsageData>> = _appUsageData
+// Data class to hold aggregated category data
+data class CategoryUsage(
+    val categoryName: String,
+    val totalDuration: Long
+)
 
-    private val _categoryData = MutableLiveData<List<CategoryData>>()
-    val categoryData: LiveData<List<CategoryData>> = _categoryData
+// Data class to hold aggregated app data
+data class AppUsage(
+    val appName: String,
+    val totalDuration: Long
+)
 
-    private val _isLoading = MutableLiveData<Boolean>()
-    val isLoading: LiveData<Boolean> = _isLoading
+class MainViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val _errorMessage = MutableLiveData<String?>()
-    val errorMessage: LiveData<String?> = _errorMessage
+    private val usageEventDao = AppDatabase.getDatabase(application).usageEventDao()
 
-    private val _selectedTimeRange = MutableLiveData<TimeRange>()
-    val selectedTimeRange: LiveData<TimeRange> = _selectedTimeRange
+    // Holds the currently selected date range ("today", "week", etc.)
+    private val _dateRange = MutableStateFlow("today")
+    val dateRange: StateFlow<String> = _dateRange.asStateFlow()
 
-    init {
-        _isLoading.value = false
-        _selectedTimeRange.value = TimeRange.TODAY
-        _appUsageData.value = emptyList()
-        _categoryData.value = emptyList()
+    // --- DATA FLOWS ---
+
+    // Flow of all raw UsageEvents for the selected date range
+    val usageEvents: StateFlow<List<UsageEvent>> = _dateRange.flatMapLatest { range ->
+        val startTime = getStartTimeForRange(range)
+        usageEventDao.getEventsSince(startTime)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    // Flow of CATEGORY usage, aggregated from UsageEvents
+    val categoryUsage: StateFlow<List<CategoryUsage>> = usageEvents.map { events ->
+        events.groupBy { it.category }
+            .map { (category, eventList) ->
+                CategoryUsage(
+                    categoryName = category,
+                    totalDuration = eventList.sumOf { it.durationMs }
+                )
+            }
+            .sortedByDescending { it.totalDuration }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    // Flow of APP usage, aggregated from UsageEvents
+    val appUsage: StateFlow<List<AppUsage>> = usageEvents.map { events ->
+        events.groupBy { it.appLabel }
+            .map { (appName, eventList) ->
+                AppUsage(
+                    appName = appName,
+                    totalDuration = eventList.sumOf { it.durationMs }
+                )
+            }
+            .sortedByDescending { it.totalDuration }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    // --- ACTIONS ---
+
+    fun updateDateRange(newRange: String) {
+        _dateRange.value = newRange
     }
 
-    fun updateData(apps: List<AppUsageData>, categories: List<CategoryData>) {
-        _appUsageData.value = apps
-        _categoryData.value = categories
+    fun clearAllLogs() {
+        viewModelScope.launch {
+            usageEventDao.clearAll()
+        }
     }
 
-    fun updateAppUsageData(apps: List<AppUsageData>) {
-        _appUsageData.value = apps
+    private fun getStartTimeForRange(range: String): Long {
+        val calendar = Calendar.getInstance()
+        return when (range) {
+            "week" -> {
+                calendar.add(Calendar.DAY_OF_YEAR, -7)
+                calendar.timeInMillis
+            }
+            "month" -> {
+                calendar.add(Calendar.MONTH, -1)
+                calendar.timeInMillis
+            }
+            "today" -> {
+                calendar.set(Calendar.HOUR_OF_DAY, 0)
+                calendar.set(Calendar.MINUTE, 0)
+                calendar.set(Calendar.SECOND, 0)
+                calendar.set(Calendar.MILLISECOND, 0)
+                calendar.timeInMillis
+            }
+            else -> 0L
+        }
     }
-
-    fun updateCategoryData(categories: List<CategoryData>) {
-        _categoryData.value = categories
-    }
-
-    fun setLoading(loading: Boolean) {
-        _isLoading.value = loading
-    }
-
-    fun setError(error: String) {
-        _errorMessage.value = error
-    }
-
-    fun clearError() {
-        _errorMessage.value = null
-    }
-
-    fun setTimeRange(timeRange: TimeRange) {
-        _selectedTimeRange.value = timeRange
-    }
-
-    fun clearData() {
-        _appUsageData.value = emptyList()
-        _categoryData.value = emptyList()
-    }
-
-    fun getTotalScreenTime(): Long {
-        return _appUsageData.value?.sumOf { it.totalTimeInForeground } ?: 0L
-    }
-
-    fun getMostUsedApp(): AppUsageData? {
-        return _appUsageData.value?.maxByOrNull { it.totalTimeInForeground }
-    }
-
-    fun getMostUsedCategory(): CategoryData? {
-        return _categoryData.value?.maxByOrNull { it.totalTime }
-    }
-
-    fun getTopApps(limit: Int = 10): List<AppUsageData> {
-        return _appUsageData.value
-            ?.sortedByDescending { it.totalTimeInForeground }
-            ?.take(limit) ?: emptyList()
-    }
-
-    fun getTopCategories(limit: Int = 8): List<CategoryData> {
-        return _categoryData.value
-            ?.sortedByDescending { it.totalTime }
-            ?.take(limit) ?: emptyList()
-    }
-
-    fun getAppsByCategory(categoryName: String): List<AppUsageData> {
-        return _categoryData.value
-            ?.find { it.categoryName == categoryName }
-            ?.apps ?: emptyList()
-    }
-
-    fun hasData(): Boolean {
-        return !_appUsageData.value.isNullOrEmpty()
-    }
-}
-
-enum class TimeRange(val displayName: String, val days: Int) {
-    TODAY("Today", 1),
-    WEEK("This Week", 7),
-    MONTH("This Month", 30)
 }
