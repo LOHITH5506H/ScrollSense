@@ -17,8 +17,6 @@ android {
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        buildConfigField("String", "GEMINI_API_KEY", "\"pasteKeyHere\"")
     }
 
     buildTypes {
@@ -45,6 +43,7 @@ android {
         buildConfig = true
         compose = true
     }
+
     composeOptions {
         kotlinCompilerExtensionVersion = "1.6.1"
     }
@@ -65,24 +64,11 @@ dependencies {
     // Charts and Graphs
     implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
 
-    // Coroutines (updated)
+    // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
 
-    // AI Integration
-    implementation("com.google.ai.client.generativeai:generativeai:0.1.2")
-    implementation("com.google.guava:guava:31.1-android")
-    implementation("org.reactivestreams:reactive-streams:1.0.4")
-
-    // HTTP Client
-    implementation("com.squareup.okhttp3:okhttp:4.11.0")
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
-
-// MPAndroidChart (if you use it)
-    implementation ("com.github.PhilJay:MPAndroidChart:v3.1.0")
-
-    // Room Database (updated to 2.6.1)
+    // Room Database
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
     kapt("androidx.room:room-compiler:2.6.1")

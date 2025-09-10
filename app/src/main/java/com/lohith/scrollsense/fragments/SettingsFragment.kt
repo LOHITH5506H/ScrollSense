@@ -60,7 +60,7 @@ class SettingsFragment : Fragment() {
         bottomNav?.addOnLayoutChangeListener(bottomNavLayoutListener)
 
         setupClickListeners()
-        updateCacheInfo()
+        // The call to updateCacheInfo() has been removed as it is no longer needed.
     }
 
     private fun setupClickListeners() {
@@ -70,7 +70,7 @@ class SettingsFragment : Fragment() {
                 openUsageAccessSettings()
             }
 
-            // Clear Cache
+            // Clear Cache (Now clears the offline categorizer's cache)
             clearCacheCard.setOnClickListener {
                 showClearCacheDialog()
             }
@@ -102,16 +102,6 @@ class SettingsFragment : Fragment() {
         }
     }
 
-    private fun updateCacheInfo() {
-        lifecycleScope.launch {
-            val mainActivity = activity as? MainActivity ?: return@launch
-            val geminiService = mainActivity.getGeminiAIService()
-            val cacheSize = geminiService.getCacheSize()
-
-            binding.cacheInfoText.text = "$cacheSize apps categorized"
-        }
-    }
-
     private fun openUsageAccessSettings() {
         val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
         try {
@@ -136,11 +126,9 @@ class SettingsFragment : Fragment() {
         lifecycleScope.launch {
             try {
                 val mainActivity = activity as? MainActivity ?: return@launch
-                val geminiService = mainActivity.getGeminiAIService()
+                val offlineCategorizer = mainActivity.getGeminiAIService() // This is now our offline service
 
-                geminiService.clearCache()
-                updateCacheInfo()
-
+                offlineCategorizer.clearCache()
                 showSnackbar("Cache cleared successfully")
             } catch (e: Exception) {
                 showSnackbar("Failed to clear cache: ${e.message}")
@@ -163,16 +151,15 @@ class SettingsFragment : Fragment() {
         lifecycleScope.launch {
             try {
                 val mainActivity = activity as? MainActivity ?: return@launch
-                val geminiService = mainActivity.getGeminiAIService()
+                val offlineCategorizer = mainActivity.getGeminiAIService()
                 val viewModel = mainActivity.getViewModel()
 
                 // Clear cache
-                geminiService.clearCache()
+                offlineCategorizer.clearCache()
 
                 // Clear view model data
                 viewModel.clearData()
 
-                updateCacheInfo()
                 showSnackbar("All data cleared successfully")
 
             } catch (e: Exception) {
@@ -199,7 +186,7 @@ class SettingsFragment : Fragment() {
                 "ScrollSense Privacy Policy:\n\n" +
                         "• All usage data stays on your device\n" +
                         "• No personal data is collected or transmitted\n" +
-                        "• App categorization uses Gemini AI API (anonymous)\n" +
+                        "• App categorization is done completely offline\n" +
                         "• No advertising or tracking\n" +
                         "• Open source and transparent\n\n" +
                         "Your privacy is our priority."
@@ -212,11 +199,11 @@ class SettingsFragment : Fragment() {
         MaterialAlertDialogBuilder(requireContext())
             .setTitle("About ScrollSense")
             .setMessage(
-                "ScrollSense v1.0\n\n" +
-                        "A digital wellness app that helps you track and understand your mobile usage patterns using AI-powered categorization.\n\n" +
+                "ScrollSense v1.1\n\n" +
+                        "A digital wellness app that helps you track and understand your mobile usage patterns with offline, on-device categorization.\n\n" +
                         "Features:\n" +
                         "• Accurate usage tracking\n" +
-                        "• AI-powered app categorization\n" +
+                        "• Offline app & content categorization\n" +
                         "• Detailed analytics\n" +
                         "• Productivity insights\n" +
                         "• Clean Material Design UI\n\n" +
@@ -261,11 +248,6 @@ class SettingsFragment : Fragment() {
 
     private fun showSnackbar(message: String) {
         Snackbar.make(binding.root, message, Snackbar.LENGTH_SHORT).show()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        updateCacheInfo()
     }
 
     override fun onDestroyView() {
