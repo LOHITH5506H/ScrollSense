@@ -46,8 +46,6 @@ fun StackedBarChart(
 
     val maxTotal = (totalsByApp.values.maxOrNull() ?: 1L).toFloat()
     val textMeasurer = rememberTextMeasurer()
-    // Capture theme color outside Canvas (can't call @Composable inside DrawScope)
-    val onSurfaceColor = MaterialTheme.colorScheme.onSurface
 
     Canvas(modifier = modifier.fillMaxSize()) {
         val barWidth = size.width / (apps.size * 1.5f)
@@ -77,10 +75,10 @@ fun StackedBarChart(
                 accumulated += height
             }
 
-            // Draw app label
+            // Draw app label in white under each bar
             val labelResult = textMeasurer.measure(
                 text = app.take(8),
-                style = androidx.compose.ui.text.TextStyle(fontSize = 8.sp, color = onSurfaceColor)
+                style = androidx.compose.ui.text.TextStyle(fontSize = 8.sp, color = Color.White)
             )
             drawText(
                 textLayoutResult = labelResult,

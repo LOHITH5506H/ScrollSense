@@ -1,0 +1,11 @@
+{
+  "adult": ["adult", "nsfw", "restricted", "18+"],
+  "social": ["comment", "follow", "timeline", "story", "share", "post", "like", "dm"],
+  "entertainment": ["movie", "film", "video", "series", "episode", "trailer", "watch", "stream"],
+  "games": ["game", "gaming", "match", "level", "quest", "battle", "multiplayer", "ranked"],
+  "news": ["headline", "breaking", "journal", "report", "daily", "press", "times", "gazette"],
+  "technology": ["programming", "software", "hardware", "android", "ios", "api", "database", "ai", "ml"],
+  "education": ["tutorial", "lesson", "course", "exam", "assignment", "university", "school", "learn"],
+  "business": ["finance", "investment", "stock", "market", "budget", "revenue", "sales", "startup"]
+}
+

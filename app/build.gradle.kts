@@ -17,6 +17,7 @@ android {
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "GEMINI_API_KEY", "\"pasteKeyHere\"")
     }
 
     buildTypes {
@@ -30,12 +31,14 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        // --- CHANGE: Updated to Java 17 ---
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = "1.8"
+        // --- CHANGE: Updated to JVM 17 ---
+        jvmTarget = "17"
     }
 
     buildFeatures {
@@ -44,24 +47,26 @@ android {
         compose = true
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.6.1"
-    }
+    // --- CHANGE: This entire block is removed as it's the source of the error ---
+    // composeOptions {
+    //     kotlinCompilerExtensionVersion = "1.6.1" // This was causing the conflict
+    // }
 }
 
 dependencies {
-    // Add this line with your other Compose dependencies
-    implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.10.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("androidx.navigation:navigation-fragment-ktx:2.7.4")
     implementation("androidx.navigation:navigation-ui-ktx:2.7.4")
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.7.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0")
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.7.0")
     implementation("androidx.viewpager2:viewpager2:1.0.0")
-    implementation("androidx.fragment:fragment-ktx:1.6.1")
+
+    // --- IMPORTANT: Ensure this line for ViewModels is present ---
+    implementation("androidx.fragment:fragment-ktx:1.6.2") // Updated to latest stable
 
     // Charts and Graphs
     implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
@@ -69,6 +74,16 @@ dependencies {
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+
+    // AI Integration
+    implementation("com.google.ai.client.generativeai:generativeai:0.1.2")
+    implementation("com.google.guava:guava:31.1-android")
+    implementation("org.reactivestreams:reactive-streams:1.0.4")
+
+    // HTTP Client
+    implementation("com.squareup.okhttp3:okhttp:4.11.0")
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 
     // Room Database
     implementation("androidx.room:room-runtime:2.6.1")

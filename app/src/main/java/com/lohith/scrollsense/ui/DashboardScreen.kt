@@ -1,178 +1,117 @@
 package com.lohith.scrollsense.ui
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.lohith.scrollsense.viewmodel.AppUsage
 import com.lohith.scrollsense.viewmodel.MainViewModel
-import java.util.concurrent.TimeUnit
 
 @Composable
-fun DashboardScreen(viewModel: MainViewModel, paddingValues: PaddingValues) {
-    val appUsage by viewModel.appUsage.collectAsState()
-    val totalScreenTime = appUsage.sumOf { it.totalDuration }
+fun DashboardScreen(viewModel: MainViewModel) {
+    // Observe the StateFlow from the ViewModel
+    val appUsageData by viewModel.appUsage.collectAsState()
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(paddingValues),
-        contentPadding = PaddingValues(16.dp),
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF5F5F5))
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item {
-            Text(
-                text = "Today's Summary",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        item {
-            SummaryCard(
-                totalScreenTime = totalScreenTime,
-                mostUsedApp = appUsage.firstOrNull()
-            )
-        }
-
-        item {
-            Text(
-                text = "Most Used Apps",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 8.dp)
-            )
-        }
-
-        itemsIndexed(appUsage.take(5)) { index, usage ->
-            AppUsageRow(
-                rank = index + 1,
-                usage = usage,
-                totalUsage = totalScreenTime
-            )
-        }
-    }
-}
-
-@Composable
-fun SummaryCard(totalScreenTime: Long, mostUsedApp: AppUsage?) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(4.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
         ) {
-            InfoColumn(
-                title = "Screen Time",
-                value = formatDuration(totalScreenTime)
-            )
-            InfoColumn(
-                title = "Most Used App",
-                value = mostUsedApp?.appName ?: "N/A",
-                subValue = mostUsedApp?.let { formatDuration(it.totalDuration) } ?: ""
-            )
-        }
-    }
-}
-
-@Composable
-fun InfoColumn(title: String, value: String, subValue: String? = null) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(text = title, style = MaterialTheme.typography.labelMedium)
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
-        )
-        if (subValue != null) {
-            Text(
-                text = subValue,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-fun AppUsageRow(rank: Int, usage: AppUsage, totalUsage: Long) {
-    val percentage = if (totalUsage > 0) {
-        usage.totalDuration.toFloat() / totalUsage.toFloat()
-    } else 0f
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        elevation = CardDefaults.cardElevation(2.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.fillMaxWidth().padding(16.dp)) {
                 Text(
-                    text = "#$rank",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    color = MaterialTheme.colorScheme.primary
+                    "Today's Summary",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF263238)
                 )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = usage.appName,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = formatDuration(usage.totalDuration),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Text(
-                    text = "${(percentage * 100).toInt()}%",
-                    fontWeight = FontWeight.SemiBold
-                )
+                Spacer(Modifier.height(8.dp))
+                SummaryCard(appUsageData)
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            LinearProgressIndicator(
-                progress = { percentage },
-                modifier = Modifier.fillMaxWidth()
-            )
+        }
+
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+        ) {
+            Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                Text(
+                    "Most Used Apps",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF263238)
+                )
+                Spacer(Modifier.height(8.dp))
+                if (appUsageData.isEmpty()) {
+                    Text("No usage data yet. Use your phone to see stats.")
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(items = appUsageData.take(5), key = { it.appName }) { app ->
+                            AppUsageCard(app = app)
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
-private fun formatDuration(millis: Long): String {
-    val hours = TimeUnit.MILLISECONDS.toHours(millis)
-    val minutes = TimeUnit.MILLISECONDS.toMinutes(millis) % 60
-    return if (hours > 0) {
-        "${hours}h ${minutes}m"
-    } else {
-        "${minutes}m"
+// A simple card to display summary info
+@Composable
+fun SummaryCard(appUsageData: List<AppUsage>) {
+    val totalTime = appUsageData.sumOf { it.totalDuration }
+    val mostUsed = appUsageData.maxByOrNull { it.totalDuration }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceAround
+        ) {
+            Column {
+                Text("Screen Time", fontWeight = FontWeight.Bold)
+                Text(formatDuration(totalTime))
+            }
+            Column {
+                Text("Most Used", fontWeight = FontWeight.Bold)
+                Text(mostUsed?.appName ?: "N/A")
+            }
+        }
+    }
+}
+
+// A card to display a single app's usage
+@Composable
+fun AppUsageCard(app: AppUsage) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(app.appName, fontWeight = FontWeight.Bold)
+            Text("Usage: ${formatDuration(app.totalDuration)}")
+        }
+    }
+}
+
+private fun formatDuration(totalTimeInForeground: Long): String {
+    val hours = totalTimeInForeground / 3_600_000
+    val minutes = (totalTimeInForeground % 3_600_000) / 60_000
+    return when {
+        hours > 0 -> "${hours}h ${minutes}m"
+        minutes > 0 -> "${minutes}m"
+        else -> "${totalTimeInForeground / 1000}s"
     }
 }

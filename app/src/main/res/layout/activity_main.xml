@@ -8,223 +8,28 @@
     android:background="@color/background_primary"
     tools:context=".MainActivity">
 
-    <!-- App Bar -->
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:elevation="4dp"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+        android:background="@color/background_primary"
+        app:elevation="0dp">
 
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:background="@color/primary"
-            android:theme="@style/ThemeOverlay.Material3.Dark.ActionBar"
-            app:titleTextColor="@color/on_primary"
-            app:subtitleTextColor="@color/on_primary_variant"
-            app:popupTheme="@style/ThemeOverlay.Material3.Light" />
+            app:title="ScrollSense"
+            app:titleTextColor="@color/on_surface" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
-    <!-- Main Content -->
-    <LinearLayout
+    <FrameLayout
+        android:id="@+id/fragmentContainer"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
-        <!-- Summary Card -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/summaryCard"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_margin="16dp"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="8dp"
-            app:cardBackgroundColor="@color/surface"
-            app:strokeColor="@color/outline_variant"
-            app:strokeWidth="1dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="24dp">
-
-                <!-- Header -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginBottom="20dp">
-
-                    <ImageView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:src="@drawable/ic_today"
-                        android:layout_marginEnd="8dp"
-                        app:tint="@color/primary" />
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Today's Summary"
-                        android:textSize="20sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/on_surface" />
-
-                </LinearLayout>
-
-                <!-- Stats Row -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:baselineAligned="false">
-
-                    <!-- Screen Time -->
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:gravity="center"
-                        android:padding="12dp"
-                        android:background="@drawable/summary_item_background">
-
-                        <ImageView
-                            android:layout_width="32dp"
-                            android:layout_height="32dp"
-                            android:src="@drawable/ic_screen_time"
-                            android:layout_marginBottom="8dp"
-                            app:tint="@color/primary" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Screen Time"
-                            android:textSize="12sp"
-                            android:textColor="@color/on_surface_variant"
-                            android:layout_marginBottom="4dp" />
-
-                        <TextView
-                            android:id="@+id/totalScreenTimeText"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="0h 0m"
-                            android:textSize="20sp"
-                            android:textStyle="bold"
-                            android:textColor="@color/primary" />
-
-                    </LinearLayout>
-
-                    <View
-                        android:layout_width="1dp"
-                        android:layout_height="match_parent"
-                        android:background="@color/outline_variant"
-                        android:layout_marginHorizontal="8dp" />
-
-                    <!-- Most Used App -->
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1.5"
-                        android:orientation="vertical"
-                        android:gravity="center"
-                        android:padding="12dp"
-                        android:background="@drawable/summary_item_background">
-
-                        <ImageView
-                            android:layout_width="32dp"
-                            android:layout_height="32dp"
-                            android:src="@drawable/ic_most_used"
-                            android:layout_marginBottom="8dp"
-                            app:tint="@color/secondary" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Most Used App"
-                            android:textSize="12sp"
-                            android:textColor="@color/on_surface_variant"
-                            android:layout_marginBottom="4dp" />
-
-                        <TextView
-                            android:id="@+id/mostUsedAppText"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="No data"
-                            android:textSize="14sp"
-                            android:textStyle="bold"
-                            android:textColor="@color/on_surface"
-                            android:gravity="center"
-                            android:maxLines="2"
-                            android:ellipsize="end" />
-
-                    </LinearLayout>
-
-                    <View
-                        android:layout_width="1dp"
-                        android:layout_height="match_parent"
-                        android:background="@color/outline_variant"
-                        android:layout_marginHorizontal="8dp" />
-
-                    <!-- Productivity Score -->
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:gravity="center"
-                        android:padding="12dp"
-                        android:background="@drawable/summary_item_background">
-
-                        <ImageView
-                            android:layout_width="32dp"
-                            android:layout_height="32dp"
-                            android:src="@drawable/ic_productivity"
-                            android:layout_marginBottom="8dp"
-                            app:tint="@color/productivity_medium" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Productivity"
-                            android:textSize="12sp"
-                            android:textColor="@color/on_surface_variant"
-                            android:layout_marginBottom="4dp" />
-
-                        <TextView
-                            android:id="@+id/productivityScoreText"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="0%"
-                            android:textSize="20sp"
-                            android:textStyle="bold"
-                            android:textColor="@color/productivity_medium" />
-
-                    </LinearLayout>
-
-                </LinearLayout>
-
-            </LinearLayout>
-
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- Fragment Container -->
-        <FrameLayout
-            android:id="@+id/fragmentContainer"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1" />
-
-    </LinearLayout>
-
-    <!-- Bottom Navigation -->
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottomNavigation"
         android:layout_width="match_parent"
@@ -235,22 +40,6 @@
         app:itemIconTint="@color/bottom_nav_selector"
         app:labelVisibilityMode="labeled"
         app:menu="@menu/bottom_navigation_menu"
-        app:elevation="12dp"
-        app:itemActiveIndicatorStyle="@style/Widget.Material3.BottomNavigationView.ActiveIndicator" />
-
-    <!-- Floating Action Button -->
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fabRefresh"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_margin="16dp"
-        android:src="@drawable/ic_refresh"
-        app:layout_anchor="@id/bottomNavigation"
-        app:layout_anchorGravity="top|end"
-        app:backgroundTint="@color/secondary"
-        app:tint="@color/on_secondary"
-        app:elevation="8dp"
-        app:borderWidth="0dp"
-        android:contentDescription="Refresh data" />
+        app:elevation="8dp" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

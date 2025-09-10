@@ -36,6 +36,12 @@ class MyAccessibilityService : AccessibilityService() {
 
     private val ignoredPackages = setOf("com.android.systemui", "com.mi.android.globallauncher")
 
+    override fun onServiceConnected() {
+        super.onServiceConnected()
+        // Load large keyword dictionaries from res/raw
+        CategoryClassifier.init(this)
+    }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
 

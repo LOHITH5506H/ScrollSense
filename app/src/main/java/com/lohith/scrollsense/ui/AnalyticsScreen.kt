@@ -1,103 +1,141 @@
 package com.lohith.scrollsense.ui
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.lohith.scrollsense.ui.components.BarChart
 import com.lohith.scrollsense.ui.components.PieChart
+import com.lohith.scrollsense.ui.components.PieLegend
 import com.lohith.scrollsense.viewmodel.MainViewModel
 
 @Composable
-fun AnalyticsScreen(viewModel: MainViewModel, paddingValues: PaddingValues) {
-    // Collect data directly from the main ViewModel's flows
+fun AnalyticsScreen(viewModel: MainViewModel) {
+    val categoryData by viewModel.categoryUsage.collectAsState()
     val appUsage by viewModel.appUsage.collectAsState()
-    val categoryUsage by viewModel.categoryUsage.collectAsState()
 
-    // Convert data to the format required by the charts
-    val appUsageDataMap = appUsage.associate { it.appName to it.totalDuration }
-    val categoryUsageDataMap = categoryUsage.associate { it.categoryName to it.totalDuration }
+    // Normalize category name (trim & lowercase) and merge all "other" buckets
+    fun normalize(name: String) = name.trim().lowercase()
 
+    // Sum by normalized category
+    val summedByNorm: Map<String, Long> = buildMap<String, Long> {
+        categoryData.forEach { c ->
+            val key = normalize(c.categoryName)
+            val prev = get(key) ?: 0L
+            put(key, prev + c.totalDuration)
+        }
+    }
 
-    LazyColumn(
+    val otherDuration = summedByNorm["other"] ?: 0L
+    // Build display pairs for non-other categories
+    val nonOtherPairs = summedByNorm
+        .filterKeys { it != "other" }
+        .map { (norm, dur) ->
+            // Title-case the first letter for display
+            val display = norm.replaceFirstChar { it.titlecase() }
+            display to dur
+        }
+        .sortedByDescending { it.second }
+
+    // Take top 5 non-other
+    val topNonOther = nonOtherPairs.take(5)
+    val remainderNonOther = nonOtherPairs.drop(5).sumOf { it.second }
+    val mergedOther = otherDuration + remainderNonOther
+
+    // Final ordered list: Other first (so color=gold), then top non-other
+    val orderedPairs = buildList {
+        if (mergedOther > 0) add("Other" to mergedOther)
+        addAll(topNonOther)
+    }
+
+    val categoryMap = linkedMapOf<String, Long>().apply { orderedPairs.forEach { put(it.first, it.second) } }
+
+    val topApps = appUsage.sortedByDescending { it.totalDuration }.take(5)
+    val appMap = topApps.associate { it.appName to it.totalDuration }
+
+    if (categoryMap.isEmpty() && appMap.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F5)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("No category data to analyze.")
+        }
+        return
+    }
+
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(paddingValues),
-        contentPadding = PaddingValues(16.dp),
+            .background(Color(0xFFF5F5F5))
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item {
-            Text(
-                text = "Usage Analytics",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-
-        // App usage distribution Pie Chart
-        item {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(360.dp),
-            ) {
-                Column(Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Usage by App",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    if (appUsageDataMap.isNotEmpty()) {
-                        PieChart(
-                            data = appUsageDataMap,
-                            modifier = Modifier.fillMaxSize()
-                        ) {}
-                    } else {
-                        Text("No app usage data yet")
-                    }
-                }
+        // Category distribution pie chart card
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                Text(
+                    text = "Usage by Category",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF263238)
+                )
+                Spacer(Modifier.height(8.dp))
+                PieChart(
+                    data = categoryMap,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(320.dp),
+                    ringThickness = 56.dp,
+                    centerLabel = "Content Usage",
+                    showLegendInside = false,
+                    drawSliceLabels = false
+                )
+                Spacer(Modifier.height(12.dp))
+                // Dedicated legend under the chart to avoid overlap
+                PieLegend(
+                    data = orderedPairs,
+                    modifier = Modifier.fillMaxWidth(),
+                    labelColor = Color.Black
+                )
             }
         }
 
-        // Category breakdown Bar Chart
-        item {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(320.dp)
-            ) {
-                Column(Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Usage by Category",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    if (categoryUsageDataMap.isNotEmpty()) {
-                        BarChart(
-                            data = categoryUsageDataMap,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        Text("No category data yet")
-                    }
-                }
+        // Top apps bar chart card
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                Text(
+                    text = "Top Apps",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF263238)
+                )
+                Spacer(Modifier.height(8.dp))
+                BarChart(
+                    data = appMap,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(240.dp),
+                    Color.Black
+                )
             }
         }
     }

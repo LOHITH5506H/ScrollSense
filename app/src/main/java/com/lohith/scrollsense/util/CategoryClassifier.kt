@@ -6,18 +6,15 @@ package com.lohith.scrollsense.util
 class CategoryClassifier {
 
     companion object {
-
-        // Extensive multilingual category keywords
-        private val categories = mapOf(
+        // Built-in minimal multilingual keywords (baseline)
+        private val baseCategories = mapOf(
             "adult" to mapOf(
                 "en" to listOf(
-                    "adult", "nsfw", "xxx", "porn", "erotic", "sex", "nude", "18+", "camgirl", "onlyfans",
-                    "hentai", "explicit", "sensual", "lust", "fetish", "kink", "boudoir", "playboy",
-                    "penthouse", "redtube", "pornhub", "xvideos", "youporn", "xhamster", "lewd"
+                    "adult", "nsfw", "xxx", "erotic", "18+"
                 ),
-                "hi" to listOf("वयस्क", "अश्लील", "सेक्स", "कामुक", "नग्न", "18+"),
-                "te" to listOf("వయోజన", "అశ్లీల", "సెక్స్", "ఎరోటిక్", "న్యూడ్", "18+"),
-                "es" to listOf("adulto", "nsfw", "xxx", "porno", "erótico", "sexo", "desnudo", "18+")
+                "hi" to listOf("वयस्क", "अश्लील", "18+"),
+                "te" to listOf("వయోజన", "అశ్లీల", "18+"),
+                "es" to listOf("adulto", "xxx", "18+")
             ),
             "games" to mapOf(
                 "en" to listOf(
@@ -56,7 +53,7 @@ class CategoryClassifier {
                     "daily", "times", "express", "chronicle", "tribune", "gazette", "journal"
                 ),
                 "hi" to listOf("समाचार", "ब्रेकिंग", "राजनीति", "सरकार", "चुनाव", "अर्थव्यवस्था", "रिपोर्टर", "पत्रकार"),
-                "te" to listOf("వార్తలు", "బ్రేకింగ్", "రాజకీయాలు", "ప్రభుత్వం", "ఎన్నికలు", "ఆర్థిక వ్యవస్థ", "రిపోర్టర్"),
+                "te" to listOf("వార్తలు", "బ్ర���కింగ్", "రాజకీయాలు", "ప్రభుత్వం", "ఎన్నికలు", "ఆర్థిక వ్యవస్థ", "రిపోర్టర్"),
                 "es" to listOf("noticias", "última hora", "política", "gobierno", "elección", "economía", "periodista")
             ),
             "technology" to mapOf(
@@ -75,7 +72,7 @@ class CategoryClassifier {
                     "school", "academic", "research", "knowledge", "training", "lecture", "exam", "test", "homework",
                     "assignment", "science", "history", "math", "geography", "physics", "chemistry", "biology"
                 ),
-                "hi" to listOf("सीखना", "अध्ययन", "शिक्षा", "कोर्स", "ट्यूटोरियल", "पाठ", "कक्षा", "ज्ञान"),
+                "hi" to listOf("सीखना", "अध्ययन", "शिक्षा", "कोर्स", "ट्यूटोरियल", "पाठ", "कक्षा", "��्ञान"),
                 "te" to listOf("నేర్చుకోవడం", "అధ్యయనం", "విద్య", "కోర్సు", "ట్యుటోరియల్", "పాఠం", "జ్ఞానం"),
                 "es" to listOf("aprender", "estudiar", "educación", "curso", "tutorial", "lección", "clase")
             ),
@@ -90,27 +87,56 @@ class CategoryClassifier {
                 "te" to listOf("వ్యాపారం", "ఫైనాన్స్", "పెట్టుబడి", "స్టాక్", "మార్కెట్", "ఆర్థిక వ్యవస్థ"),
                 "es" to listOf("negocio", "finanzas", "inversión", "mercado", "economía", "empresa")
             ),
-            // "Other" category has no keywords; it's the default if no matches are found.
             "other" to mapOf(
                 "en" to listOf(), "hi" to listOf(), "te" to listOf(), "es" to listOf()
             )
         )
 
+        // External large keyword dictionary loaded from res/raw at runtime
+        @Volatile private var externalKeywords: Map<String, Map<String, List<String>>> = emptyMap()
+
+        fun init(context: android.content.Context) {
+            externalKeywords = KeywordLoader.loadAll(context)
+        }
+
+        // Merge built-ins with external lists (union per language)
+        private fun mergedCategories(): Map<String, Map<String, List<String>>> {
+            val keys = (baseCategories.keys + externalKeywords.keys).toSet()
+            val out = mutableMapOf<String, Map<String, List<String>>>()
+            for (cat in keys) {
+                val base = baseCategories[cat] ?: emptyMap()
+                val ext = externalKeywords[cat] ?: emptyMap()
+                val langs = (base.keys + ext.keys).toSet()
+                val langMap = mutableMapOf<String, List<String>>()
+                for (lang in langs) {
+                    val baseList = base[lang] ?: emptyList()
+                    val extList = ext[lang] ?: emptyList()
+                    // Distinct and keep order: external first to prioritize custom
+                    val merged = (extList + baseList).distinct()
+                    langMap[lang] = merged
+                }
+                out[cat] = langMap
+            }
+            // Ensure 'adult' category always exists
+            if (!out.containsKey("adult")) {
+                out["adult"] = baseCategories["adult"] ?: emptyMap()
+            }
+            return out
+        }
+
         /**
-         * This function now classifies content based ONLY on the text found on the screen.
-         * The package name is ignored for categorization to ensure accuracy based on content.
+         * Classifies content based on on-screen text using a large, mergeable keyword set.
          */
         fun classifyContent(text: String, packageName: String): String {
             val lowerText = text.lowercase()
             val scores = mutableMapOf<String, Int>()
+            val categories = mergedCategories()
 
-            // Score each category based on keyword matches with weighting
             for ((category, languages) in categories) {
                 var score = 0
                 for ((_, keywords) in languages) {
                     for (keyword in keywords) {
-                        if (lowerText.contains(keyword.lowercase())) {
-                            // Longer, more specific keywords get a higher score
+                        if (keyword.isNotBlank() && lowerText.contains(keyword.lowercase())) {
                             score += when (keyword.length) {
                                 in 1..3 -> 1
                                 in 4..6 -> 2
@@ -119,20 +145,16 @@ class CategoryClassifier {
                         }
                     }
                 }
-                if (score > 0) {
-                    scores[category] = score
-                }
+                if (score > 0) scores[category] = score
             }
-
-            // Return the category with the highest score, or "other" if no keywords matched.
             return scores.maxByOrNull { it.value }?.key ?: "other"
         }
 
         fun detectLanguage(text: String): String {
             return when {
-                text.any { it in '\u0900'..'\u097F' } -> "hi" // Devanagari
-                text.any { it in '\u0C00'..'\u0C7F' } -> "te" // Telugu
-                text.any { it in 'À'..'ÿ' } -> "es" // Latin extended
+                text.any { it in '\u0900'..'\u097F' } -> "hi"
+                text.any { it in '\u0C00'..'\u0C7F' } -> "te"
+                text.any { it in 'À'..'ÿ' } -> "es"
                 else -> "en"
             }
         }
@@ -140,11 +162,10 @@ class CategoryClassifier {
         fun getDetailedClassification(text: String, packageName: String): ClassificationResult {
             val primaryCategory = classifyContent(text, packageName)
             val language = detectLanguage(text)
-
             return ClassificationResult(
                 category = primaryCategory,
                 language = language,
-                confidence = 1.0f, // Confidence is 1.0 as it's a direct keyword match
+                confidence = 1.0f,
                 keywords = emptyList()
             )
         }

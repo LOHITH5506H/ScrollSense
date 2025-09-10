@@ -2,7 +2,6 @@ package com.lohith.scrollsense.ui.components
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -13,13 +12,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
 fun BarChart(
     data: Map<String, Long>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    labelColor: Color = Color.White
 ) {
     val colors = listOf(
         Color(0xFFE57373), Color(0xFF81C784), Color(0xFF64B5F6),
@@ -40,7 +39,7 @@ fun BarChart(
     }
 
     Canvas(modifier = modifier.fillMaxSize()) {
-        drawBarChart(data, colors, maxValue, textMeasurer)
+        drawBarChart(data, colors, maxValue, textMeasurer, labelColor)
     }
 }
 
@@ -48,7 +47,8 @@ private fun DrawScope.drawBarChart(
     data: Map<String, Long>,
     colors: List<Color>,
     maxValue: Float,
-    textMeasurer: androidx.compose.ui.text.TextMeasurer
+    textMeasurer: androidx.compose.ui.text.TextMeasurer,
+    labelColor: Color
 ) {
     val barWidth = size.width / (data.size * 1.5f)
     val barSpacing = barWidth * 0.5f
@@ -68,7 +68,7 @@ private fun DrawScope.drawBarChart(
 
         // Draw value on top of bar
         val text = value.toString()
-        val textSize = androidx.compose.ui.text.TextStyle(fontSize = 10.sp)
+        val textSize = androidx.compose.ui.text.TextStyle(fontSize = 10.sp, color = labelColor)
         val textLayoutResult = textMeasurer.measure(text, textSize)
 
         drawText(
@@ -79,10 +79,10 @@ private fun DrawScope.drawBarChart(
             )
         )
 
-        // Draw category label
+        // Draw category label under each bar using provided label color
         val labelResult = textMeasurer.measure(
-            key.take(8), // Truncate long labels
-            androidx.compose.ui.text.TextStyle(fontSize = 8.sp)
+            key.take(10),
+            androidx.compose.ui.text.TextStyle(fontSize = 10.sp, color = labelColor)
         )
         drawText(
             textLayoutResult = labelResult,
