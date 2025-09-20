@@ -14,17 +14,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.lohith.scrollsense.ui.components.BarChart
 import com.lohith.scrollsense.ui.components.PieChart
 import com.lohith.scrollsense.ui.components.PieLegend
+import com.lohith.scrollsense.util.PackageNameHelper
 import com.lohith.scrollsense.viewmodel.MainViewModel
 
 @Composable
 fun AnalyticsScreen(viewModel: MainViewModel) {
     val categoryData by viewModel.categoryUsage.collectAsState()
     val appUsage by viewModel.appUsage.collectAsState()
+    val context = LocalContext.current
 
     // Normalize category name (trim & lowercase) and merge all "other" buckets
     fun normalize(name: String) = name.trim().lowercase()
@@ -44,17 +47,17 @@ fun AnalyticsScreen(viewModel: MainViewModel) {
         .filterKeys { it != "other" }
         .map { (norm, dur) ->
             // Title-case the first letter for display
-            val display = norm.replaceFirstChar { it.titlecase() }
+            val display = norm.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
             display to dur
         }
         .sortedByDescending { it.second }
 
-    // Take top 5 non-other
-    val topNonOther = nonOtherPairs.take(5)
-    val remainderNonOther = nonOtherPairs.drop(5).sumOf { it.second }
+    // Take top 7 non-other categories to include new ones like Fitness and Adult
+    val topNonOther = nonOtherPairs.take(7)
+    val remainderNonOther = nonOtherPairs.drop(7).sumOf { it.second }
     val mergedOther = otherDuration + remainderNonOther
 
-    // Final ordered list: Other first (so color=gold), then top non-other
+    // Final ordered list for the pie chart
     val orderedPairs = buildList {
         if (mergedOther > 0) add("Other" to mergedOther)
         addAll(topNonOther)
@@ -63,11 +66,18 @@ fun AnalyticsScreen(viewModel: MainViewModel) {
     val categoryMap = linkedMapOf<String, Long>().apply { orderedPairs.forEach { put(it.first, it.second) } }
 
     val topApps = appUsage.sortedByDescending { it.totalDuration }.take(5)
-    val appMap = topApps.associate { it.appName to it.totalDuration }
+    // Resolve package names to app labels for the bar chart
+    val appMap = topApps.associate {
+        // it.appName from the ViewModel is actually the packageName
+        val appName = PackageNameHelper.getAppLabel(context, it.appName)
+        appName to it.totalDuration
+    }
 
     if (categoryMap.isEmpty() && appMap.isEmpty()) {
         Box(
-            modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F5)),
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFFF5F5F5)),
             contentAlignment = Alignment.Center
         ) {
             Text("No category data to analyze.")
@@ -107,7 +117,7 @@ fun AnalyticsScreen(viewModel: MainViewModel) {
                     drawSliceLabels = false
                 )
                 Spacer(Modifier.height(12.dp))
-                // Dedicated legend under the chart to avoid overlap
+                // Dedicated legend under the chart
                 PieLegend(
                     data = orderedPairs,
                     modifier = Modifier.fillMaxWidth(),
@@ -134,9 +144,10 @@ fun AnalyticsScreen(viewModel: MainViewModel) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(240.dp),
-                    Color.Black
+                    labelColor = Color.Black // Explicitly set label color
                 )
             }
         }
     }
 }
+

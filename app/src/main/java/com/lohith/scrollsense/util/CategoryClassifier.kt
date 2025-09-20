@@ -1,11 +1,28 @@
-// Enhanced CategoryClassifier.kt - PURELY CONTENT-AWARE VERSION
+// Enhanced CategoryClassifier.kt - HIERARCHICAL & CONTENT-AWARE VERSION
 // Location: app/src/main/java/com/lohith/scrollsense/util/CategoryClassifier.kt
 
 package com.lohith.scrollsense.util
 
+import android.content.Context
+
 class CategoryClassifier {
 
     companion object {
+        // Category Priority: Higher-priority categories are checked first.
+        // If a keyword from a high-priority category is found, that category is assigned immediately.
+        private val CATEGORY_PRIORITY = listOf(
+            "adult",
+            "fitness",
+            "business",
+            "education",
+            "technology",
+            "news",
+            "games",
+            "social",
+            "entertainment",
+            "other"
+        )
+
         // Built-in minimal multilingual keywords (baseline)
         private val baseCategories = mapOf(
             "adult" to mapOf(
@@ -22,7 +39,7 @@ class CategoryClassifier {
                     "fps", "rpg", "strategy", "puzzle", "quest", "character", "upgrade", "loot", "boss",
                     "arena", "clan", "guild", "moba", "esports", "victory", "defeat", "respawn", "gameplay"
                 ),
-                "hi" to listOf("खेल", "गेम", "गेमिंग", "स्तर", "मिशन", "लड़ाई", "मैच"),
+                "hi" to listOf("खेल", "गेम", "गेमिंग", "स्तर", "మిషన్", "लड़ाई", "मैच"),
                 "te" to listOf("ఆట", "గేమ్", "గేమింగ్", "స్థాయి", "మిషన్", "యుద్ధం", "మ్యాచ్"),
                 "es" to listOf("juego", "juegos", "gaming", "nivel", "misión", "batalla", "partida")
             ),
@@ -30,11 +47,12 @@ class CategoryClassifier {
                 "en" to listOf(
                     "social", "chat", "message", "comment", "post", "share", "like", "follow", "friend",
                     "family", "community", "group", "network", "profile", "status", "update", "notification",
-                    "mention", "tag", "story", "dm", "pm", "tweet", "retweet", "feed", "timeline"
+                    "mention", "tag", "story", "dm", "pm", "tweet", "retweet", "feed", "timeline",
+                    "call", "dialling", "video call", "voice call", "incallui" // --- CHANGE: Added call-related keywords ---
                 ),
-                "hi" to listOf("सामाजिक", "चैट", "संदेश", "टिप्पणी", "पोस्ट", "साझा करें", "लाइक"),
-                "te" to listOf("సామాజిక", "చాట్", "సందేశం", "కామెంట్", "పోస్ట్", "షేర్", "లైక్"),
-                "es" to listOf("social", "chat", "mensaje", "comentario", "publicación", "compartir")
+                "hi" to listOf("सामाजिक", "चैट", "संदेश", "टिप्पणी", "पोस्ट", "साझा करें", "लाइक", "कॉल"),
+                "te" to listOf("సామాజిక", "చాట్", "సందేశం", "కామెంట్", "పోస్ట్", "షేర్", "లైక్", "కాల్"),
+                "es" to listOf("social", "chat", "mensaje", "comentario", "publicación", "compartir", "llamada")
             ),
             "entertainment" to mapOf(
                 "en" to listOf(
@@ -53,7 +71,7 @@ class CategoryClassifier {
                     "daily", "times", "express", "chronicle", "tribune", "gazette", "journal"
                 ),
                 "hi" to listOf("समाचार", "ब्रेकिंग", "राजनीति", "सरकार", "चुनाव", "अर्थव्यवस्था", "रिपोर्टर", "पत्रकार"),
-                "te" to listOf("వార్తలు", "బ్ర���కింగ్", "రాజకీయాలు", "ప్రభుత్వం", "ఎన్నికలు", "ఆర్థిక వ్యవస్థ", "రిపోర్టర్"),
+                "te" to listOf("వార్తలు", "బ్రేకింగ్", "రాజకీయాలు", "ప్రభుత్వం", "ఎన్నికలు", "ఆర్థిక వ్యవస్థ", "రిపోర్టర్"),
                 "es" to listOf("noticias", "última hora", "política", "gobierno", "elección", "economía", "periodista")
             ),
             "technology" to mapOf(
@@ -72,7 +90,7 @@ class CategoryClassifier {
                     "school", "academic", "research", "knowledge", "training", "lecture", "exam", "test", "homework",
                     "assignment", "science", "history", "math", "geography", "physics", "chemistry", "biology"
                 ),
-                "hi" to listOf("सीखना", "अध्ययन", "शिक्षा", "कोर्स", "ट्यूटोरियल", "पाठ", "कक्षा", "��्ञान"),
+                "hi" to listOf("सीखना", "अध्ययन", "शिक्षा", "कोर्स", "ट्यूटोरियल", "पाठ", "कक्षा", "ज्ञान"),
                 "te" to listOf("నేర్చుకోవడం", "అధ్యయనం", "విద్య", "కోర్సు", "ట్యుటోరియల్", "పాఠం", "జ్ఞానం"),
                 "es" to listOf("aprender", "estudiar", "educación", "curso", "tutorial", "lección", "clase")
             ),
@@ -87,6 +105,15 @@ class CategoryClassifier {
                 "te" to listOf("వ్యాపారం", "ఫైనాన్స్", "పెట్టుబడి", "స్టాక్", "మార్కెట్", "ఆర్థిక వ్యవస్థ"),
                 "es" to listOf("negocio", "finanzas", "inversión", "mercado", "economía", "empresa")
             ),
+            "fitness" to mapOf(
+                "en" to listOf(
+                    "fitness", "gym", "workout", "exercise", "health", "wellness", "nutrition", "protein", "cardio",
+                    "yoga", "running", "lifting", "weights", "muscle", "abs", "bodybuilding", "trainer"
+                ),
+                "hi" to listOf("फिटनेस", "जिम", "वर्कआउट", "व्यायाम", "स्वास्थ्य", "वेलनेस", "पोषण"),
+                "te" to listOf("ఫిట్‌నెస్", "జిమ్", "వర్కౌట్", "వ్యాయామం", "ఆరోగ్యం", "సంరక్షణ"),
+                "es" to listOf("fitness", "gimnasio", "entrenamiento", "ejercicio", "salud", "bienestar")
+            ),
             "other" to mapOf(
                 "en" to listOf(), "hi" to listOf(), "te" to listOf(), "es" to listOf()
             )
@@ -95,7 +122,7 @@ class CategoryClassifier {
         // External large keyword dictionary loaded from res/raw at runtime
         @Volatile private var externalKeywords: Map<String, Map<String, List<String>>> = emptyMap()
 
-        fun init(context: android.content.Context) {
+        fun init(context: Context) {
             externalKeywords = KeywordLoader.loadAll(context)
         }
 
@@ -117,22 +144,47 @@ class CategoryClassifier {
                 }
                 out[cat] = langMap
             }
-            // Ensure 'adult' category always exists
+            // Ensure 'adult' and 'fitness' categories always exists
             if (!out.containsKey("adult")) {
                 out["adult"] = baseCategories["adult"] ?: emptyMap()
+            }
+            if (!out.containsKey("fitness")) {
+                out["fitness"] = baseCategories["fitness"] ?: emptyMap()
             }
             return out
         }
 
         /**
-         * Classifies content based on on-screen text using a large, mergeable keyword set.
+         * Classifies content based on a hierarchical/priority system.
+         * It checks for keywords in the order defined in CATEGORY_PRIORITY.
+         * The first category to have a matching keyword is returned.
          */
         fun classifyContent(text: String, packageName: String): String {
+            // --- CHANGE: Add a specific rule for the system's call UI ---
+            if (packageName.contains("com.android.incallui")) {
+                return "social"
+            }
+
             val lowerText = text.lowercase()
-            val scores = mutableMapOf<String, Int>()
             val categories = mergedCategories()
 
+            for (category in CATEGORY_PRIORITY) {
+                val languages = categories[category] ?: continue
+                for ((_, keywords) in languages) {
+                    for (keyword in keywords) {
+                        if (keyword.isNotBlank() && lowerText.contains(keyword.lowercase())) {
+                            return category // Return the first high-priority category that matches
+                        }
+                    }
+                }
+            }
+
+            // If no priority category matches, fall back to the original scoring method
+            // to find the best fit among the remaining categories.
+            val scores = mutableMapOf<String, Int>()
             for ((category, languages) in categories) {
+                if (CATEGORY_PRIORITY.contains(category)) continue // Skip already checked priority categories
+
                 var score = 0
                 for ((_, keywords) in languages) {
                     for (keyword in keywords) {
@@ -147,8 +199,10 @@ class CategoryClassifier {
                 }
                 if (score > 0) scores[category] = score
             }
+
             return scores.maxByOrNull { it.value }?.key ?: "other"
         }
+
 
         fun detectLanguage(text: String): String {
             return when {
@@ -192,3 +246,5 @@ class CategoryClassifier {
         val keywords: List<String>
     )
 }
+
+

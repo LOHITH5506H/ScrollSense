@@ -72,6 +72,35 @@ fun DashboardScreen(viewModel: MainViewModel) {
     }
 }
 
+// Add helper function for cleaning app names
+private fun cleanAppName(appName: String): String {
+    return when {
+        appName.contains("callui") || appName.contains("dialer") -> "Call"
+        appName.contains("youtube") -> "YouTube"
+        appName.contains("amazon") -> "Amazon"
+        appName.contains("whatsapp") -> "WhatsApp"
+        appName.contains("chrome") -> "Chrome"
+        appName.contains("instagram") -> "Instagram"
+        appName.contains("facebook") -> "Facebook"
+        appName.contains("gmail") -> "Gmail"
+        appName.contains("maps") -> "Maps"
+        appName.contains("camera") -> "Camera"
+        appName.contains("gallery") -> "Gallery"
+        appName.contains("settings") -> "Settings"
+        appName.contains("contacts") -> "Contacts"
+        appName.contains("messages") || appName.contains("sms") -> "Messages"
+        appName.contains("calculator") -> "Calculator"
+        appName.contains("calendar") -> "Calendar"
+        appName.contains("clock") -> "Clock"
+        appName.contains("music") -> "Music"
+        appName.contains("photos") -> "Photos"
+        appName.contains("play") -> "Play Store"
+        appName.contains("android.") -> appName.substringAfterLast(".").replaceFirstChar { it.uppercase() }
+        appName.contains(".") -> appName.substringAfterLast(".").replaceFirstChar { it.uppercase() }
+        else -> appName.replaceFirstChar { it.uppercase() }
+    }
+}
+
 // A simple card to display summary info
 @Composable
 fun SummaryCard(appUsageData: List<AppUsage>) {
@@ -89,7 +118,7 @@ fun SummaryCard(appUsageData: List<AppUsage>) {
             }
             Column {
                 Text("Most Used", fontWeight = FontWeight.Bold)
-                Text(mostUsed?.appName ?: "N/A")
+                Text(mostUsed?.let { cleanAppName(it.appName) } ?: "N/A")
             }
         }
     }
@@ -100,7 +129,7 @@ fun SummaryCard(appUsageData: List<AppUsage>) {
 fun AppUsageCard(app: AppUsage) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp)) {
-            Text(app.appName, fontWeight = FontWeight.Bold)
+            Text(cleanAppName(app.appName), fontWeight = FontWeight.Bold)
             Text("Usage: ${formatDuration(app.totalDuration)}")
         }
     }
