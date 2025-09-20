@@ -18,20 +18,21 @@
         <entry key="c8dfb0da-7c3e-448b-8970-0382556f2649">
           <value>
             <set>
+              <option value="1a54a987-3e11-4c84-8486-1285d3f03354" />
               <option value="23864c3b-67ca-4f0e-bff9-402b1ab9aaf7" />
-              <option value="43c8b2d1-fbbf-4b27-9aa7-bbdd441b2411" />
-              <option value="98749969-7947-4f7b-9b29-f07adb926a25" />
-              <option value="3892fd1e-d573-4e71-ac1f-61362a21ba7d" />
-              <option value="78ff735d-92b3-4547-8536-bacd590b21b7" />
-              <option value="82de33c2-759a-4420-be31-8acb9f1338b3" />
+              <option value="2d725634-dbde-4b78-8635-76e9a78206bb" />
               <option value="2e1eeb2b-f322-43a9-9373-46715b9f3ba0" />
               <option value="31001aeb-bc36-4eb2-8ad2-db260db5be18" />
-              <option value="f750cb99-d195-4b2e-b8cf-981edd66b998" />
-              <option value="f5e7e82d-47c1-4d9c-8adf-ec3a1c772f41" />
-              <option value="1a54a987-3e11-4c84-8486-1285d3f03354" />
-              <option value="2d725634-dbde-4b78-8635-76e9a78206bb" />
+              <option value="3892fd1e-d573-4e71-ac1f-61362a21ba7d" />
+              <option value="43c8b2d1-fbbf-4b27-9aa7-bbdd441b2411" />
               <option value="66b4291f-d7eb-43f7-a77b-cb48afa3cfa9" />
+              <option value="78ff735d-92b3-4547-8536-bacd590b21b7" />
+              <option value="82de33c2-759a-4420-be31-8acb9f1338b3" />
               <option value="8576bb03-9c38-453c-a95b-a2ac1172b3ac" />
+              <option value="98749969-7947-4f7b-9b29-f07adb926a25" />
+              <option value="b2a8559e-df26-4cf1-98e7-cbb23d4eff76" />
+              <option value="f5e7e82d-47c1-4d9c-8adf-ec3a1c772f41" />
+              <option value="f750cb99-d195-4b2e-b8cf-981edd66b998" />
             </set>
           </value>
         </entry>
@@ -39,26 +40,7 @@
     </option>
     <pendingWorkingSetItems>
       <entry key="84f2db06-30d5-4b93-9c84-1261e046cbec" />
-      <entry key="c8dfb0da-7c3e-448b-8970-0382556f2649">
-        <set>
-          <option value="file://$PROJECT_DIR$/app/src/main/java/com/lohith/scrollsense/ui/AnalyticsScreen.kt" />
-          <option value="file://$PROJECT_DIR$/app/src/main/java/com/lohith/scrollsense/ui/DashboardScreen.kt" />
-          <option value="file://$PROJECT_DIR$/app/src/main/java/com/lohith/scrollsense/ui/LogsScreen.kt" />
-          <option value="file://$PROJECT_DIR$/app/src/main/java/com/lohith/scrollsense/ui/MainScreen.kt" />
-          <option value="file://$PROJECT_DIR$/app/src/main/java/com/lohith/scrollsense/adapters/AppUsageAdapter.kt" />
-          <option value="file://$PROJECT_DIR$/app/src/main/java/com/lohith/scrollsense/viewmodel/ViewModelFactory.kt" />
-          <option value="file://$PROJECT_DIR$/app/src/main/java/com/lohith/scrollsense/fragments/DashboardFragment.kt" />
-          <option value="file://$PROJECT_DIR$/app/src/main/java/com/lohith/scrollsense/ui/components/BarChart.kt" />
-          <option value="file://$PROJECT_DIR$/app/src/main/java/com/lohith/scrollsense/ui/components/StackedBarChart.kt" />
-          <option value="file://$PROJECT_DIR$/app/src/main/java/com/lohith/scrollsense/util/KeywordLoader.kt" />
-          <option value="file://$PROJECT_DIR$/app/src/main/java/com/lohith/scrollsense/util/CategoryClassifier.kt" />
-          <option value="file://$PROJECT_DIR$/app/src/main/res/raw/keywords_en.json" />
-          <option value="file://$PROJECT_DIR$/app/src/main/java/com/lohith/scrollsense/ui/components/PieChart.kt" />
-          <option value="file://$PROJECT_DIR$/app/src/main/java/com/lohith/scrollsense/MyAccessibilityService.kt" />
-          <option value="file://$PROJECT_DIR$/app/src/main/java/com/lohith/scrollsense/MainActivity.kt" />
-          <option value="file://$PROJECT_DIR$/app/src/main/java/com/lohith/scrollsense/ui/SettingsScreen.kt" />
-        </set>
-      </entry>
+      <entry key="c8dfb0da-7c3e-448b-8970-0382556f2649" />
     </pendingWorkingSetItems>
   </component>
 </project>
