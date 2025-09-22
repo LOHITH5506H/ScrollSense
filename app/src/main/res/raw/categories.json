@@ -1,11 +1,14 @@
 {
   "categories": [
     { "id": "social", "en": "Social", "es": "Social", "fr": "Social", "de": "Sozial" },
-    { "id": "productivity", "en": "Productivity", "es": "Productividad", "fr": "Productivité", "de": "Produktivität" },
     { "id": "entertainment", "en": "Entertainment", "es": "Entretenimiento", "fr": "Divertissement", "de": "Unterhaltung" },
+    { "id": "games", "en": "Games", "es": "Juegos", "fr": "Jeux", "de": "Spiele" },
     { "id": "news", "en": "News", "es": "Noticias", "fr": "Actualités", "de": "Nachrichten" },
     { "id": "education", "en": "Education", "es": "Educación", "fr": "Éducation", "de": "Bildung" },
-    { "id": "health", "en": "Health", "es": "Salud", "fr": "Santé", "de": "Gesundheit" }
+    { "id": "technology", "en": "Technology", "es": "Tecnología", "fr": "Technologie", "de": "Technologie" },
+    { "id": "business", "en": "Business", "es": "Negocios", "fr": "Affaires", "de": "Geschäft" },
+    { "id": "fitness", "en": "Fitness", "es": "Fitness", "fr": "Fitness", "de": "Fitness" },
+    { "id": "adult", "en": "Adult", "es": "Adulto", "fr": "Adulte", "de": "Erwachsene" },
+    { "id": "other", "en": "Other", "es": "Otro", "fr": "Autre", "de": "Andere" }
   ]
 }
-
