@@ -5,7 +5,7 @@
     <!-- Navigation -->
     <string name="nav_dashboard">Dashboard</string>
     <string name="nav_detailed_stats">Analytics</string>
-    <string name="nav_settings">Settings</string>
+    <string name="nav_settings">Insights</string>
 
     <!-- Menu -->
     <string name="action_clear_logs">Clear Logs</string>

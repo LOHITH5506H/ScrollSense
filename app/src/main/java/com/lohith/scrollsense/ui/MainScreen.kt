@@ -1,5 +1,6 @@
 package com.lohith.scrollsense.ui
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
@@ -14,6 +15,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lohith.scrollsense.viewmodel.MainViewModel
 
@@ -31,6 +33,7 @@ fun MainScreen() {
     val viewModel: MainViewModel = viewModel()
     var currentScreenRoute by rememberSaveable { mutableStateOf(Screen.Dashboard.route) }
     val screens = listOf(Screen.Dashboard, Screen.Analytics, Screen.Logs, Screen.Settings)
+    val context = LocalContext.current
 
     Scaffold(
         containerColor = Color(0xFFF5F5F5),
@@ -41,7 +44,15 @@ fun MainScreen() {
                         icon = { Icon(screen.icon, contentDescription = screen.label) },
                         label = { Text(screen.label) },
                         selected = currentScreenRoute == screen.route,
-                        onClick = { currentScreenRoute = screen.route },
+                        onClick = {
+                            if (screen.route == Screen.Analytics.route) {
+                                // Launch the enhanced analytics activity with all new features
+                                val intent = Intent(context, EnhancedAnalyticsActivity::class.java)
+                                context.startActivity(intent)
+                            } else {
+                                currentScreenRoute = screen.route
+                            }
+                        },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = Color(0xFF512DA8),
                             selectedTextColor = Color(0xFF512DA8),
@@ -59,8 +70,10 @@ fun MainScreen() {
             .background(Color(0xFFF5F5F5))) {
             when (currentScreenRoute) {
                 Screen.Dashboard.route -> DashboardScreen(viewModel)
-                Screen.Analytics.route -> AnalyticsScreen(viewModel)
-                // We will create Logs and Settings screens in the next step
+                Screen.Analytics.route -> {
+                    // Analytics now launches as separate activity with enhanced features
+                    DashboardScreen(viewModel) // Show dashboard while transitioning
+                }
                 Screen.Logs.route -> LogsScreen(viewModel)
                 Screen.Settings.route -> SettingsScreen()
             }

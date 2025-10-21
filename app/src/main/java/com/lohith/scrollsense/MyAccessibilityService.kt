@@ -8,7 +8,7 @@ import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import com.lohith.scrollsense.data.AppDatabase
 import com.lohith.scrollsense.data.UsageEvent
-import com.lohith.scrollsense.util.CategoryClassifier
+import com.lohith.scrollsense.util.EnhancedCategoryClassifier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -24,6 +24,9 @@ class MyAccessibilityService : AccessibilityService() {
     private val db by lazy { AppDatabase.getDatabase(this) }
     private val usageEventDao by lazy { db.usageEventDao() }
 
+    // Use enhanced classifier instead of basic one
+    private val enhancedClassifier by lazy { EnhancedCategoryClassifier(this) }
+
     // --- State variables to track the current session ---
     private var currentSessionId: Long? = null
     private var currentPackageName: String? = null
@@ -34,30 +37,33 @@ class MyAccessibilityService : AccessibilityService() {
     private val debounceHandler = Handler(Looper.getMainLooper())
     private var debounceRunnable: Runnable? = null
 
-    private val ignoredPackages = setOf("com.android.systemui", "com.mi.android.globallauncher")
+    private val ignoredPackages = setOf(
+        "com.android.systemui",
+        "com.mi.android.globallauncher",
+        "com.miui.home",
+        "com.android.launcher3"
+    )
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        // Load large keyword dictionaries from res/raw
-        CategoryClassifier.init(this)
+        Log.d(TAG, "ScrollSense Accessibility Service Connected")
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
 
         val packageName = event.packageName?.toString()
-        if (packageName.isNullOrBlank() || ignoredPackages.contains(packageName) || packageName == applicationContext.packageName) {
+        if (packageName.isNullOrBlank() ||
+            ignoredPackages.contains(packageName) ||
+            packageName == applicationContext.packageName) {
             return
         }
 
-        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
-            // Cancel any pending runnable
-            debounceRunnable?.let { debounceHandler.removeCallbacks(it) }
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
+            event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
 
-            // Create a new runnable to process the event after a delay
-            debounceRunnable = Runnable {
-                processEvent(event)
-            }
+            debounceRunnable?.let { debounceHandler.removeCallbacks(it) }
+            debounceRunnable = Runnable { processEvent(event) }
             debounceHandler.postDelayed(debounceRunnable!!, DEBOUNCE_DELAY_MS)
         }
     }
@@ -82,20 +88,30 @@ class MyAccessibilityService : AccessibilityService() {
         }
 
         serviceScope.launch {
-            val newCategory = CategoryClassifier.classifyContent(screenText, packageName)
+            // Use enhanced classifier with previous category context
+            val classificationResult = enhancedClassifier.classifyContent(
+                screenText,
+                packageName,
+                currentCategory
+            )
 
-            // If the app or category hasn't changed, do nothing.
-            if (packageName == currentPackageName && newCategory == currentCategory) {
-                return@launch
+            // Only change session if category changed significantly or confidence is high
+            val shouldChangeSession = packageName != currentPackageName ||
+                (classificationResult.category != currentCategory && classificationResult.confidence > 0.7f)
+
+            if (shouldChangeSession) {
+                endCurrentSession(eventTime)
+                startNewSession(packageName, screenText, classificationResult, eventTime)
             }
-
-            // A significant change occurred. End the old session and start a new one.
-            endCurrentSession(eventTime)
-            startNewSession(packageName, screenText, newCategory, eventTime)
         }
     }
 
-    private fun startNewSession(packageName: String, screenTitle: String, category: String, startTime: Long) {
+    private fun startNewSession(
+        packageName: String,
+        screenTitle: String,
+        classificationResult: com.lohith.scrollsense.util.ClassificationResult,
+        startTime: Long
+    ) {
         serviceScope.launch {
             val appLabel = getAppName(packageName)
             val newEvent = UsageEvent(
@@ -105,17 +121,19 @@ class MyAccessibilityService : AccessibilityService() {
                 packageName = packageName,
                 appLabel = appLabel,
                 screenTitle = screenTitle,
-                category = category
+                category = classificationResult.category,
+                subcategory = classificationResult.subcategory,
+                confidence = classificationResult.confidence
             )
             val id = usageEventDao.insert(newEvent)
 
             // Update current session state
             currentSessionId = id
             currentPackageName = packageName
-            currentCategory = category
+            currentCategory = classificationResult.category
             lastEventTime = startTime
 
-            Log.d(TAG, "Start session id=$id, pkg=$appLabel, category=$category")
+            Log.d(TAG, "Started session: $appLabel -> ${classificationResult.category} (${classificationResult.confidence})")
         }
     }
 
@@ -126,12 +144,12 @@ class MyAccessibilityService : AccessibilityService() {
         if (duration < 500) { // Discard sessions less than 0.5s
             serviceScope.launch {
                 usageEventDao.deleteById(capturedSessionId)
-                Log.d(TAG, "Discarded short session id=$capturedSessionId, duration=${duration}ms")
+                Log.d(TAG, "Discarded short session: ${duration}ms")
             }
         } else {
             serviceScope.launch {
                 usageEventDao.updateSessionEndTime(capturedSessionId, endTime, duration)
-                Log.d(TAG, "End session id=$capturedSessionId, duration=${duration}ms")
+                Log.d(TAG, "Ended session: ${duration}ms")
             }
         }
 
@@ -150,26 +168,26 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     private fun collectTextFromNodes(node: android.view.accessibility.AccessibilityNodeInfo?, builder: StringBuilder) {
-        if (node == null || !node.isVisibleToUser) return
-        if (node.text != null && node.text.isNotBlank()) {
-            builder.append(node.text).append(" ")
+        if (node == null) return
+
+        node.text?.let { text ->
+            if (text.isNotBlank()) {
+                builder.append(text).append(" ")
+            }
         }
+
         for (i in 0 until node.childCount) {
-            val child = node.getChild(i)
-            collectTextFromNodes(child, builder)
-            child?.recycle()
+            collectTextFromNodes(node.getChild(i), builder)
         }
     }
 
     override fun onInterrupt() {
-        Log.d(TAG, "Accessibility service interrupted.")
-        serviceJob.cancel()
+        Log.d(TAG, "ScrollSense Accessibility Service Interrupted")
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        endCurrentSession(System.currentTimeMillis())
         serviceJob.cancel()
-        Log.d(TAG, "Accessibility service destroyed.")
+        Log.d(TAG, "ScrollSense Accessibility Service Destroyed")
     }
 }

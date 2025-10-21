@@ -48,13 +48,18 @@ interface UsageEventDao {
     @Query("DELETE FROM usage_events")
     suspend fun clearAll()
 
-    // --- NEW FUNCTIONS ADDED HERE ---
+    // NEW METHODS FOR ENHANCED FUNCTIONALITY
+    @Query("SELECT * FROM usage_events WHERE startTime >= :startTime AND endTime <= :endTime")
+    suspend fun getEventsBetween(startTime: Long, endTime: Long): List<UsageEvent>
+
+    @Query("UPDATE usage_events SET endTime = :endTime, durationMs = :durationMs WHERE id = :sessionId")
+    suspend fun updateSessionEndTime(sessionId: Long, endTime: Long, durationMs: Long)
 
     @Query("DELETE FROM usage_events WHERE id = :id")
     suspend fun deleteById(id: Long)
 
-    @Query("UPDATE usage_events SET endTime = :endTime, durationMs = :durationMs WHERE id = :id")
-    suspend fun updateSessionEndTime(id: Long, endTime: Long, durationMs: Long)
+    @Query("SELECT * FROM usage_events WHERE packageName = :packageName AND startTime >= :startTime")
+    suspend fun getEventsForPackage(packageName: String, startTime: Long): List<UsageEvent>
 }
 
 data class AppUsageStat(
