@@ -1,5 +1,6 @@
 package com.lohith.scrollsense.ui
 
+import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Rect
@@ -37,15 +38,11 @@ class EnhancedAnalyticsActivity : AppCompatActivity() {
     private lateinit var analyticsProcessor: AnalyticsProcessor
     private lateinit var pdfExporter: PDFExporter
 
-    // Keep latest datasets to compute Detailed Statistics cohesively
     private var lastSummaries: List<com.lohith.scrollsense.data.DailySummary> = emptyList()
     private var lastCategories: List<com.lohith.scrollsense.analytics.WeeklyCategoryData> = emptyList()
     private var lastApps: List<com.lohith.scrollsense.analytics.WeeklyAppData> = emptyList()
 
-    // Use a lambda-enabled adapter so tapping a row does something useful
     private lateinit var detailedAdapter: DetailedStatsAdapter
-
-    // Programmatic legend group injected below the pie chart
     private var categoryLegendGroup: ChipGroup? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,7 +53,6 @@ class EnhancedAnalyticsActivity : AppCompatActivity() {
         analyticsProcessor = AnalyticsProcessor(this)
         pdfExporter = PDFExporter(this)
 
-        // Keep pie chart big regardless of legend lines
         binding.pieChartCategories.post {
             val lp = binding.pieChartCategories.layoutParams
             val minHeight = dpToPxInt(240f)
@@ -69,14 +65,12 @@ class EnhancedAnalyticsActivity : AppCompatActivity() {
         setupViews()
         setupObservers()
 
-        // Process more history so Month view has distinct data
         lifecycleScope.launch {
             analyticsProcessor.processLastDays(30)
             viewModel.refreshData()
         }
     }
 
-    // Generate N visually distinct colors (HSV evenly spaced hues)
     private fun generateDistinctColors(count: Int, saturation: Float = 0.70f, value: Float = 0.95f): List<Int> {
         if (count <= 0) return emptyList()
         val colors = ArrayList<Int>(count)
@@ -90,10 +84,9 @@ class EnhancedAnalyticsActivity : AppCompatActivity() {
     }
 
     private fun setupViews() {
-        // Setup toolbar
+        binding.toolbar.setNavigationIcon(androidx.appcompat.R.drawable.abc_ic_ab_back_material)
         binding.toolbar.setNavigationOnClickListener { finish() }
 
-        // Setup date range selector
         binding.chipToday.setOnClickListener {
             viewModel.setTimeRange("today")
             updateChartTitle("Today's Analytics")
@@ -107,14 +100,9 @@ class EnhancedAnalyticsActivity : AppCompatActivity() {
             updateChartTitle("This Month's Analytics")
         }
 
-        // Setup export buttons
         binding.btnExportPdf.setOnClickListener { exportCurrentData() }
         binding.btnShareReport.setOnClickListener { shareCurrentData() }
 
-        // Setup category correction button (for user feedback learning)
-        binding.btnCorrectCategories.setOnClickListener { showCategoryCorrectionDialog() }
-
-        // Setup RecyclerView for detailed stats
         detailedAdapter = DetailedStatsAdapter { onDetailedItemClick(it) }
         binding.recyclerViewDetailedStats.layoutManager = LinearLayoutManager(this)
         binding.recyclerViewDetailedStats.adapter = detailedAdapter
@@ -144,15 +132,22 @@ class EnhancedAnalyticsActivity : AppCompatActivity() {
         val days = lastSummaries.size.coerceAtLeast(1)
         val totalTime = lastSummaries.sumOf { it.totalScreenTimeMs }
         val totalSessions = lastSummaries.sumOf { it.sessionsCount }
-        val avgPerDay = totalTime / days
+        val avgPerDay = if (days > 0) totalTime / days else 0L
         val busiest = lastSummaries.maxByOrNull { it.totalScreenTimeMs }
-        val topCategory = lastCategories.maxByOrNull { it.totalTimeMs }
+
+        val sortedCategories = lastCategories.sortedByDescending { it.totalTimeMs }
+        val topCategory = if (sortedCategories.isNotEmpty() && sortedCategories.first().category.equals("other", ignoreCase = true)) {
+            sortedCategories.getOrNull(1)
+        } else {
+            sortedCategories.firstOrNull()
+        }
+
         val topApp = lastApps.maxByOrNull { it.totalTimeMs }
         val itemList = mutableListOf<DetailedStatItem>()
 
         itemList += DetailedStatItem("Average per day", formatDuration(avgPerDay))
         itemList += DetailedStatItem("Busiest day", busiest?.let { "${formatDisplayDate(it.date)} • ${formatDuration(it.totalScreenTimeMs)}" } ?: "-")
-        itemList += DetailedStatItem("Sessions per day (avg)", String.format(Locale.getDefault(), "%.1f", totalSessions.toFloat() / days))
+        itemList += DetailedStatItem("Sessions per day (avg)", String.format(Locale.getDefault(), "%.1f", if (days > 0) totalSessions.toFloat() / days else 0f))
         itemList += DetailedStatItem("Top category", topCategory?.let { "${it.category} • ${formatDuration(it.totalTimeMs)}" } ?: "-")
         itemList += DetailedStatItem("Top app", topApp?.let { "${sanitizeAppName(it.appName, it.packageName)} • ${formatDuration(it.totalTimeMs)}" } ?: "-")
         itemList += DetailedStatItem("Apps used", lastApps.size.toString())
@@ -161,79 +156,57 @@ class EnhancedAnalyticsActivity : AppCompatActivity() {
         detailedAdapter.submitList(itemList)
     }
 
-    /** Pick a friendly Y tick step (in minutes) and configure the axis with headroom. */
     private fun configureYAxis(axis: YAxis, maxMinutes: Float) {
         val step = when {
-            maxMinutes <= 60f -> 10f
-            maxMinutes <= 120f -> 20f
-            maxMinutes <= 240f -> 30f
-            maxMinutes <= 360f -> 60f
-            maxMinutes <= 720f -> 120f
-            else -> 180f
+            maxMinutes <= 60f -> 10f; maxMinutes <= 120f -> 20f; maxMinutes <= 240f -> 30f
+            maxMinutes <= 360f -> 60f; maxMinutes <= 720f -> 120f; else -> 180f
         }
         val maxRounded = kotlin.math.ceil(maxMinutes / step) * step
         val ticks = kotlin.math.min(6, (maxRounded / step).toInt() + 1)
-        axis.axisMinimum = 0f
-        axis.axisMaximum = maxRounded.toFloat()
-        axis.setLabelCount(ticks, true)
-        axis.granularity = step
-        axis.spaceTop = 0.12f
-        axis.setDrawGridLines(true)
-        axis.gridColor = Color.parseColor("#E6E6E6")
-        axis.gridLineWidth = 0.7f
-        axis.textColor = Color.parseColor("#666666")
-        axis.axisLineColor = Color.parseColor("#CCCCCC")
+        axis.axisMinimum = 0f; axis.axisMaximum = maxRounded; axis.setLabelCount(ticks, true)
+        axis.granularity = step; axis.spaceTop = 0.12f; axis.setDrawGridLines(true)
+        axis.gridColor = Color.parseColor("#E6E6E6"); axis.gridLineWidth = 0.7f
+        axis.textColor = Color.parseColor("#666666"); axis.axisLineColor = Color.parseColor("#CCCCCC")
         axis.valueFormatter = object : ValueFormatter() {
             override fun getAxisLabel(value: Float, axis: AxisBase?): String = formatMinutesLabel(value)
         }
     }
 
     private fun updateWeeklyBarChart(summaries: List<com.lohith.scrollsense.data.DailySummary>) {
-        val entries = summaries.mapIndexed { index, summary ->
+        val sortedSummaries = summaries.sortedBy { it.date }
+
+        val labels = sortedSummaries.map { summary ->
+            try {
+                val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(summary.date) ?: Date()
+                SimpleDateFormat("E", Locale.getDefault()).format(date)
+            } catch (e: Exception) {
+                summary.date
+            }
+        }
+
+        val entries = sortedSummaries.mapIndexed { index, summary ->
             BarEntry(index.toFloat(), (summary.totalScreenTimeMs / (1000 * 60)).toFloat())
         }
         val dataSet = BarDataSet(entries, "Screen Time").apply {
-            colors = generateDistinctColors(entries.size)
-            valueTextSize = 10f
-            valueFormatter = object : ValueFormatter() { override fun getFormattedValue(value: Float): String = formatMinutesLabel(value) }
+            colors = generateDistinctColors(entries.size); setDrawValues(false)
         }
         val barData = BarData(dataSet).apply { barWidth = 0.6f }
         val maxMinutes = entries.maxOfOrNull { it.y } ?: 0f
         binding.barChartWeekly.apply {
-            data = barData
-            description.isEnabled = false
+            data = barData; description.isEnabled = false
             xAxis.apply {
-                position = XAxis.XAxisPosition.BOTTOM
-                granularity = 1f
-                setGranularityEnabled(true)
-                setDrawGridLines(false)
-                setAvoidFirstLastClipping(false)
-                yOffset = 6f
-                textSize = 10f
-                axisMinimum = -0.5f
-                axisMaximum = entries.size - 0.5f
-                valueFormatter = object : ValueFormatter() {
-                    override fun getFormattedValue(value: Float): String {
-                        val index = value.toInt()
-                        return if (index in entries.indices) {
-                            when (viewModel.currentTimeRange.value) {
-                                "month" -> "W${index + 1}"
-                                else -> try {
-                                    SimpleDateFormat("E", Locale.getDefault()).format(
-                                        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(summaries[index].date) ?: Date()
-                                    )
-                                } catch (_: Exception) { summaries[index].date }
-                            }
-                        } else ""
-                    }
+                position = XAxis.XAxisPosition.BOTTOM; granularity = 1f; setGranularityEnabled(true)
+                setDrawGridLines(false); setAvoidFirstLastClipping(false); yOffset = 6f; textSize = 10f
+                axisMinimum = -0.5f; axisMaximum = entries.size - 0.5f
+                valueFormatter = if (viewModel.currentTimeRange.value == "month") {
+                    val monthLabels = entries.indices.map { "W${it + 1}" }
+                    IndexAxisValueFormatter(monthLabels)
+                } else {
+                    IndexAxisValueFormatter(labels)
                 }
             }
-            axisRight.isEnabled = false
-            configureYAxis(axisLeft, maxMinutes)
-            legend.isEnabled = false
-            setExtraOffsets(8f, 12f, 8f, 24f)
-            animateY(1000)
-            invalidate()
+            axisRight.isEnabled = false; configureYAxis(axisLeft, maxMinutes); legend.isEnabled = false
+            setExtraOffsets(8f, 12f, 8f, 24f); animateY(1000); invalidate()
         }
     }
 
@@ -244,36 +217,17 @@ class EnhancedAnalyticsActivity : AppCompatActivity() {
         }
         val entries = valid.map { c -> PieEntry((c.totalTimeMs / (1000 * 60)).toFloat(), c.category) }
         val colors = generateDistinctColors(entries.size)
-        val dataSet = PieDataSet(entries, "Categories").apply {
-            this.colors = colors
-            valueTextSize = 11f
-            valueTextColor = Color.parseColor("#444444")
-            sliceSpace = 2f
-            setDrawValues(false) // turn off values on slices (safety on dataset)
-        }
+        val dataSet = PieDataSet(entries, "Categories").apply { this.colors = colors; sliceSpace = 2f; setDrawValues(false) }
         binding.pieChartCategories.apply {
-            val chartRef = this
-            val pieData = PieData(dataSet).apply {
-                setDrawValues(false) // and on PieData itself to fully disable any value rendering
-            }
-            data = pieData // no value formatter; values hidden
-            description.isEnabled = false
-            centerText = "Categories"
-            setUsePercentValues(false) // keep percentages only in legend
-            setDrawEntryLabels(false)
-            isDrawHoleEnabled = true
-            holeRadius = 58f
-            transparentCircleRadius = 62f
-            legend.isEnabled = false
-            setExtraOffsets(8f, 8f, 8f, 8f)
-            animateY(800)
-            invalidate()
+            data = PieData(dataSet).apply { setDrawValues(false) }; description.isEnabled = false
+            centerText = "Categories"; setUsePercentValues(false); setDrawEntryLabels(false)
+            isDrawHoleEnabled = true; holeRadius = 58f; transparentCircleRadius = 62f
+            legend.isEnabled = false; setExtraOffsets(8f, 8f, 8f, 8f); animateY(800); invalidate()
         }
-        // Build legend chip labels with percentages like in PDFs
         val total = valid.sumOf { it.totalTimeMs }.toFloat()
         val labelWithPct = valid.map { c ->
             val pct = if (total > 0f) (c.totalTimeMs / total) * 100f else 0f
-            "${c.category} (${String.format(Locale.getDefault(),"%.0f%%", pct)})"
+            "${c.category} (${String.format(Locale.getDefault(), "%.0f%%", pct)})"
         }
         renderCategoryLegendChips(labelWithPct, colors)
     }
@@ -290,14 +244,10 @@ class EnhancedAnalyticsActivity : AppCompatActivity() {
             val pieIndex = container.indexOfChild(binding.pieChartCategories)
             if (pieIndex >= 0) container.addView(categoryLegendGroup, pieIndex + 1) else container.addView(categoryLegendGroup)
         }
-        val group = categoryLegendGroup ?: return
-        group.removeAllViews()
+        val group = categoryLegendGroup ?: return; group.removeAllViews()
         labels.forEachIndexed { i, label ->
             val chip = Chip(this).apply {
-                text = label
-                isCheckable = false
-                isClickable = false
-                isChipIconVisible = true
+                text = label; isCheckable = false; isClickable = false; isChipIconVisible = true
                 setChipIconResource(android.R.drawable.presence_online)
                 chipIconTint = android.content.res.ColorStateList.valueOf(colors[i])
                 textSize = if (labels.size > 10) 12f else 13f
@@ -310,17 +260,11 @@ class EnhancedAnalyticsActivity : AppCompatActivity() {
         val topApps = apps.take(5)
         if (topApps.isEmpty()) { binding.barChartTopApps.clear(); binding.barChartTopApps.invalidate(); return }
         val entries = topApps.mapIndexed { index, app -> BarEntry(index.toFloat(), (app.totalTimeMs / (1000 * 60)).toFloat()) }
-        val dataSet = BarDataSet(entries, "Usage Time").apply {
-            colors = generateDistinctColors(entries.size)
-            valueTextSize = 10f
-            valueFormatter = object : ValueFormatter() { override fun getFormattedValue(value: Float): String = formatMinutesLabel(value) }
-        }
+        val dataSet = BarDataSet(entries, "Usage Time").apply { colors = generateDistinctColors(entries.size); setDrawValues(false) }
         val labels = topApps.map { sanitizeAppName(it.appName, it.packageName).take(24) }
         val avgLen = if (labels.isNotEmpty()) labels.sumOf { it.length }.toFloat() / labels.size else 0f
-        // Tight bottom offset: small base + gentle slope; clamp to keep bars tall
         val bottomOffset = (16f + (avgLen - 8f).coerceAtLeast(0f) * 0.9f).coerceIn(16f, 30f)
 
-        // Restore base height to keep plot area tall (no extra growth); rely on bottom offset only
         binding.barChartTopApps.post {
             val baseHeight = dpToPxInt(200f)
             val lp = binding.barChartTopApps.layoutParams
@@ -329,99 +273,53 @@ class EnhancedAnalyticsActivity : AppCompatActivity() {
 
         val maxMinutes = entries.maxOfOrNull { it.y } ?: 0f
         binding.barChartTopApps.apply {
-            data = BarData(dataSet).apply { barWidth = 0.6f } // constant bar width
-            description.isEnabled = false
+            data = BarData(dataSet).apply { barWidth = 0.6f }; description.isEnabled = false
             xAxis.apply {
-                position = XAxis.XAxisPosition.BOTTOM
-                valueFormatter = IndexAxisValueFormatter(labels)
-                granularity = 1f
-                setGranularityEnabled(true)
-                setDrawGridLines(false)
-                setAvoidFirstLastClipping(false)
-                labelRotationAngle = -40f
-                yOffset = 6f
-                textSize = 10f
-                axisMinimum = -0.5f
-                axisMaximum = entries.size - 0.5f
+                position = XAxis.XAxisPosition.BOTTOM; valueFormatter = IndexAxisValueFormatter(labels)
+                granularity = 1f; setGranularityEnabled(true); setDrawGridLines(false)
+                setAvoidFirstLastClipping(false); labelRotationAngle = -40f; yOffset = 6f
+                textSize = 10f; axisMinimum = -0.5f; axisMaximum = entries.size - 0.5f
                 setLabelCount(labels.size, false)
             }
-            configureYAxis(axisLeft, maxMinutes)
-            axisRight.isEnabled = false
-            legend.isEnabled = false
-            setExtraOffsets(8f, 12f, 8f, bottomOffset)
-            animateY(900)
-            invalidate()
+            configureYAxis(axisLeft, maxMinutes); axisRight.isEnabled = false; legend.isEnabled = false
+            setExtraOffsets(8f, 12f, 8f, bottomOffset); animateY(900); invalidate()
         }
     }
 
     private fun onDetailedItemClick(item: DetailedStatItem) {
         when (item.title) {
-            "Top category" -> {
-                smoothScrollToView(binding.pieChartCategories)
-                binding.pieChartCategories.animateY(600)
-            }
-            "Top app", "Apps used" -> {
-                smoothScrollToView(binding.barChartTopApps)
-                binding.barChartTopApps.animateY(600)
-            }
-            else -> {
-                smoothScrollToView(binding.barChartWeekly)
-                binding.barChartWeekly.animateY(600)
-            }
+            "Top category" -> smoothScrollToView(binding.pieChartCategories)
+            "Top app", "Apps used" -> smoothScrollToView(binding.barChartTopApps)
+            else -> smoothScrollToView(binding.barChartWeekly)
         }
     }
 
     private fun smoothScrollToView(target: View) {
-        var parent: View? = target
-        var scrollView: NestedScrollView? = null
+        var parent: View? = target; var scrollView: NestedScrollView? = null
         repeat(8) {
             parent = (parent?.parent as? View) ?: return@repeat
             if (parent is NestedScrollView) { scrollView = parent as NestedScrollView; return@repeat }
         }
         scrollView?.let { ns ->
-            val rect = Rect()
-            target.getDrawingRect(rect)
+            val rect = Rect(); target.getDrawingRect(rect)
             ns.offsetDescendantRectToMyCoords(target, rect)
             ns.smoothScrollTo(0, (rect.top - 24 * resources.displayMetrics.density).toInt())
         }
     }
 
     private fun updateAppAnalytics(apps: List<com.lohith.scrollsense.analytics.WeeklyAppData>) {
-        // Update top apps summary
-        val topAppsText = apps.take(5).joinToString("\n") { app ->
-            "${sanitizeAppName(app.appName, app.packageName)}: ${formatDuration(app.totalTimeMs)}"
-        }
-        binding.textTopApps.text = topAppsText
-
-        // Update total screen time
-        val totalTime = apps.sumOf { it.totalTimeMs }
-        binding.textTotalScreenTime.text = formatDuration(totalTime)
-
-        // Update session count
-        val totalSessions = apps.sumOf { it.totalSessions }
-        binding.textTotalSessions.text = totalSessions.toString()
+        binding.textTotalScreenTime.text = formatDuration(apps.sumOf { it.totalTimeMs })
+        binding.textTotalSessions.text = apps.sumOf { it.totalSessions }.toString()
     }
 
     private fun updateUIForTimeRange(timeRange: String) {
-        // Update chip selection
         binding.chipToday.isChecked = timeRange == "today"
         binding.chipWeek.isChecked = timeRange == "week"
         binding.chipMonth.isChecked = timeRange == "month"
-
-        // Update trend chart visibility and title based on time range
         when (timeRange) {
-            "today" -> {
-                binding.cardTrendChart.visibility = android.view.View.GONE
-                binding.textTrendTitle.text = "Daily Trend"
-            }
-            "week" -> {
-                binding.cardTrendChart.visibility = android.view.View.VISIBLE
-                binding.textTrendTitle.text = "Daily Trend"
-            }
-            "month" -> {
-                binding.cardTrendChart.visibility = android.view.View.VISIBLE
-                binding.textTrendTitle.text = "Weekly Trend"
-            }
+            "today" -> { binding.cardTrendChart.visibility = View.GONE; binding.textTrendTitle.text = "Daily Trend" }
+            "week" -> { binding.cardTrendChart.visibility = View.VISIBLE; binding.textTrendTitle.text = "Daily Trend" }
+            "month" -> { binding.cardTrendChart.visibility = View.VISIBLE; binding.textTrendTitle.text = "Weekly Trend" }
         }
     }
 
@@ -429,45 +327,39 @@ class EnhancedAnalyticsActivity : AppCompatActivity() {
         binding.textChartTitle.text = title
     }
 
+    private fun getSavedInsightText(): String {
+        val prefs = getSharedPreferences("ai_insights", Context.MODE_PRIVATE)
+        return prefs.getString("last_text", "") ?: ""
+    }
+
     private fun exportCurrentData() {
         lifecycleScope.launch {
             try {
-                binding.progressExport.visibility = android.view.View.VISIBLE
-
+                binding.progressExport.visibility = View.VISIBLE
                 val timeRange = viewModel.currentTimeRange.value ?: "today"
+                val insightText = getSavedInsightText()
                 val file = when (timeRange) {
                     "today" -> {
                         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
                         val dailySummary = viewModel.getDailySummary(today)
                         val categoryAnalytics = viewModel.getDailyCategoryAnalytics(today)
                         val appAnalytics = viewModel.getDailyAppAnalytics(today)
-
                         if (dailySummary != null) {
-                            pdfExporter.exportDailyReport(dailySummary, categoryAnalytics, appAnalytics)
-                        } else {
-                            showToast("No data available for today")
-                            return@launch
-                        }
+                            pdfExporter.exportDailyReport(dailySummary, categoryAnalytics, appAnalytics, insightText)
+                        } else { showToast("No data available for today"); return@launch }
                     }
                     else -> {
                         val weeklyAnalytics = viewModel.getCurrentWeeklyAnalytics()
                         if (weeklyAnalytics != null) {
-                            pdfExporter.exportWeeklyReport(weeklyAnalytics)
-                        } else {
-                            showToast("No data available for the selected period")
-                            return@launch
-                        }
+                            pdfExporter.exportWeeklyReport(weeklyAnalytics, insightText, isMonthlyReport = (timeRange == "month"))
+                        } else { showToast("No data available for the selected period"); return@launch }
                     }
                 }
-
-                binding.progressExport.visibility = android.view.View.GONE
+                binding.progressExport.visibility = View.GONE
                 showToast("Report exported: ${file.name}")
-
-                // Open the PDF
                 openPDF(file)
-
             } catch (e: Exception) {
-                binding.progressExport.visibility = android.view.View.GONE
+                binding.progressExport.visibility = View.GONE
                 showToast("Export failed: ${e.message}")
             }
         }
@@ -477,41 +369,29 @@ class EnhancedAnalyticsActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val timeRange = viewModel.currentTimeRange.value ?: "today"
+                val insightText = getSavedInsightText()
                 val file = when (timeRange) {
                     "today" -> {
                         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
                         val dailySummary = viewModel.getDailySummary(today)
                         val categoryAnalytics = viewModel.getDailyCategoryAnalytics(today)
                         val appAnalytics = viewModel.getDailyAppAnalytics(today)
-
                         if (dailySummary != null) {
-                            pdfExporter.exportDailyReport(dailySummary, categoryAnalytics, appAnalytics)
-                        } else {
-                            showToast("No data available for today")
-                            return@launch
-                        }
+                            pdfExporter.exportDailyReport(dailySummary, categoryAnalytics, appAnalytics, insightText)
+                        } else { showToast("No data available for today"); return@launch }
                     }
                     else -> {
                         val weeklyAnalytics = viewModel.getCurrentWeeklyAnalytics()
                         if (weeklyAnalytics != null) {
-                            pdfExporter.exportWeeklyReport(weeklyAnalytics)
-                        } else {
-                            showToast("No data available for the selected period")
-                            return@launch
-                        }
+                            pdfExporter.exportWeeklyReport(weeklyAnalytics, insightText, isMonthlyReport = (timeRange == "month"))
+                        } else { showToast("No data available for the selected period"); return@launch }
                     }
                 }
-
                 sharePDF(file)
-
             } catch (e: Exception) {
                 showToast("Share failed: ${e.message}")
             }
         }
-    }
-
-    private fun showCategoryCorrectionDialog() {
-        showToast("Category correction feature coming soon!")
     }
 
     private fun openPDF(file: java.io.File) {
@@ -547,14 +427,9 @@ class EnhancedAnalyticsActivity : AppCompatActivity() {
         val totalMinutes = durationMs / (1000 * 60)
         val hours = totalMinutes / 60
         val minutes = totalMinutes % 60
-        return when {
-            hours > 0 -> "${hours}h ${minutes}m"
-            minutes > 0 -> "${minutes}m"
-            else -> "<1m"
-        }
+        return when { hours > 0 -> "${hours}h ${minutes}m"; minutes > 0 -> "${minutes}m"; else -> "<1m" }
     }
 
-    // Minute label formatter for charts to show Xh Ym when >=60m
     private fun formatMinutesLabel(valueInMinutes: Float): String {
         val totalMinutes = valueInMinutes.toInt()
         val h = totalMinutes / 60
@@ -566,12 +441,11 @@ class EnhancedAnalyticsActivity : AppCompatActivity() {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
-    // Replace system dialer/telecom packages with a friendly label; also normalize Chrome
     private fun sanitizeAppName(appName: String, packageName: String?): String {
         val key = ((packageName ?: "") + "|" + appName).lowercase(Locale.getDefault())
         return when {
             key.contains("incallui") || key.contains("dialer") || key.contains("telecom") -> "Call"
-            key.contains("com.android.chrome") || key.contains("org.chromium.chrome") || key.contains(" chrome") || key.endsWith(".chrome") -> "Chrome"
+            key.contains("com.android.chrome") || key.contains("org.chromium.chrome") -> "Chrome"
             else -> appName
         }
     }

@@ -1,35 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:paddingTop="8dp"
-    android:paddingBottom="8dp">
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingVertical="12dp">
 
-    <TextView
-        android:id="@+id/textTitle"
-        android:layout_width="match_parent"
+    <LinearLayout
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:textSize="14sp"
-        android:textStyle="bold"
-        android:textColor="@android:color/black"
-        android:maxLines="1"
-        android:ellipsize="end" />
+        android:layout_weight="1"
+        android:orientation="vertical">
 
-    <TextView
-        android:id="@+id/textDetail"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textSize="12sp"
-        android:textColor="@android:color/darker_gray"
-        android:maxLines="2"
-        android:ellipsize="end" />
+        <TextView
+            android:id="@+id/textTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            tools:text="Average per day"
+            android:textAppearance="?attr/textAppearanceLabelLarge"
+            android:textColor="?attr/colorOnSurfaceVariant" />
 
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@android:color/darker_gray"
-        android:alpha="0.2"
-        android:layout_marginTop="8dp"/>
+        <TextView
+            android:id="@+id/textDetail"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            tools:text="3h 21m"
+            android:textAppearance="?attr/textAppearanceBodyLarge"
+            android:textColor="?attr/colorOnSurface"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+
 </LinearLayout>
-

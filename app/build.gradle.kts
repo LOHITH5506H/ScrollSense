@@ -1,9 +1,17 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("kotlin-parcelize")
     id("kotlin-kapt")
+}
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(localPropertiesFile.inputStream())
 }
 
 android {
@@ -17,7 +25,9 @@ android {
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "GEMINI_API_KEY", "\"pasteKeyHere\"")
+
+        val geminiApiKey = localProperties.getProperty("GEMINI_API_KEY") ?: ""
+        buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
     }
 
     buildTypes {
@@ -76,7 +86,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
 
     // AI Integration
-    implementation("com.google.ai.client.generativeai:generativeai:0.1.2")
+    implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
     implementation("com.google.guava:guava:31.1-android")
     implementation("org.reactivestreams:reactive-streams:1.0.4")
 

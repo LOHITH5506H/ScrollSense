@@ -1,21 +1,45 @@
 package com.lohith.scrollsense.ui
 
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import com.lohith.scrollsense.viewmodel.AiInsightsViewModelCompat
 import java.util.concurrent.TimeUnit
 
+class InsightsScreenCompat : Fragment() {
+
+    private val vm: AiInsightsViewModelCompat by viewModels()
+
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
+    ): View {
+        return ComposeView(requireContext()).apply {
+            setContent {
+                MaterialTheme {
+                    InsightsScreenContent(vm)
+                }
+            }
+        }
+    }
+}
+
 @Composable
-fun InsightsScreenCompat() {
-    val vm: AiInsightsViewModelCompat = viewModel()
+private fun InsightsScreenContent(vm: AiInsightsViewModelCompat) {
     val insight by vm.insightText.collectAsState()
     val isGenerating by vm.isGenerating.collectAsState()
     val error by vm.error.collectAsState()
@@ -37,20 +61,17 @@ fun InsightsScreenCompat() {
     val secs = TimeUnit.MILLISECONDS.toSeconds(millisLeft) % 60
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
-            .padding(16.dp),
+        modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F5)).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Card(
             colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
         ) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
                     text = "AI-Powered Insights",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = Color(0xFF263238)
                 )
@@ -64,37 +85,37 @@ fun InsightsScreenCompat() {
                     Text(error ?: "", color = Color(0xFFD32F2F), style = MaterialTheme.typography.bodySmall)
                 }
 
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(16.dp))
 
-                Row(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    if (!canGenerate) {
-                        Text(
-                            "Next refresh in %02d:%02d:%02d".format(hrs, mins, secs),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF616161)
-                        )
+                    val statusText = if (!canGenerate) {
+                        "Next refresh in %02d:%02d:%02d".format(hrs, mins, secs)
                     } else {
-                        Text(
-                            "You can generate a new response now.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF2E7D32)
-                        )
+                        "You can generate a new response now."
                     }
+                    Text(
+                        text = statusText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (canGenerate) Color(0xFF2E7D32) else Color(0xFF616161),
+                        modifier = Modifier.fillMaxWidth()
+                    )
 
                     Button(
                         onClick = { vm.generateInsight() },
                         enabled = canGenerate && !isGenerating
                     ) {
                         if (isGenerating) {
-                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
                             Spacer(Modifier.width(8.dp))
                             Text("Generating…")
                         } else {
-                            Text("Generate new response")
+                            Icon(Icons.Default.Refresh, contentDescription = "Generate")
+                            Spacer(Modifier.width(8.dp))
+                            Text("Generate")
                         }
                     }
                 }
@@ -108,4 +129,3 @@ fun InsightsScreenCompat() {
         }
     }
 }
-

@@ -30,7 +30,17 @@
           <value>
             <set>
               <option value="2a233bbc-bcfa-4037-b219-006a70953d0b" />
+              <option value="34dbe5a9-1dd1-48e7-afdb-41cb3d68b4f6" />
+              <option value="367ee58a-e220-4edb-8eac-b9fd710b0a23" />
+              <option value="44f6ef05-421b-4c43-83df-f65b71a9d868" />
+              <option value="4eb73208-7c6d-418d-9945-cae3d7bab5d4" />
+              <option value="59799d90-d4ca-4398-9873-21faaef91a72" />
+              <option value="697c3f5c-6834-459d-a51b-37ee2d15a33e" />
               <option value="901679f0-fdce-4707-b8e5-d605fc387389" />
+              <option value="9dda8982-bd24-42c8-bfcc-edcfab07d88b" />
+              <option value="a0697946-ebc0-407e-999d-18dd68d4cbf3" />
+              <option value="a0e9944f-c599-4ca2-90c3-0b0abf44e97e" />
+              <option value="c459c69a-15d6-4209-a382-22c3d46e56b3" />
             </set>
           </value>
         </entry>
@@ -171,6 +181,14 @@
       </map>
     </option>
     <pendingWorkingSetItems>
+      <entry key="1d58cfe3-952a-49d0-8bbe-72e9d9cb5807">
+        <set>
+          <option value="file://$PROJECT_DIR$/app/src/main/res/drawable/ic_scrollsense_logo.xml" />
+          <option value="file://$PROJECT_DIR$/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml" />
+          <option value="file://$PROJECT_DIR$/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml" />
+          <option value="file://$PROJECT_DIR$/app/src/main/res/drawable/ic_launcher_foreground.xml" />
+        </set>
+      </entry>
       <entry key="27719437-5e54-4bd4-9d98-e455b15d1085" />
       <entry key="290f6a1c-a078-47f8-8bdd-f4d2883c5ebb" />
       <entry key="35edf579-14a7-4800-8dd4-3010e059a89d" />

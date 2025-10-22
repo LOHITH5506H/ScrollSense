@@ -8,7 +8,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -16,21 +15,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.lohith.scrollsense.R
 import com.lohith.scrollsense.viewmodel.MainViewModel
+import com.lohith.scrollsense.viewmodel.InsightsViewModel
 
 // Defines the screens in the app
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
     object Dashboard : Screen("dashboard", "Dashboard", Icons.Filled.Home)
     object Analytics : Screen("analytics", "Analytics", Icons.Filled.Info)
     object Logs : Screen("logs", "Logs", Icons.AutoMirrored.Filled.List)
-    object Settings : Screen("settings", "Settings", Icons.Filled.Settings)
+    object Settings : Screen("settings", "Insights", Icons.Filled.Info) // Renamed for clarity
 }
 
 @Composable
 fun MainScreen() {
-    // Create one instance of the ViewModel to be shared by all screens
-    val viewModel: MainViewModel = viewModel()
+    val mainViewModel: MainViewModel = viewModel()
+    // Create an instance of the InsightsViewModel here
+    val insightsViewModel: InsightsViewModel = viewModel()
+
     var currentScreenRoute by rememberSaveable { mutableStateOf(Screen.Dashboard.route) }
     val screens = listOf(Screen.Dashboard, Screen.Analytics, Screen.Logs, Screen.Settings)
     val context = LocalContext.current
@@ -42,11 +46,16 @@ fun MainScreen() {
                 screens.forEach { screen ->
                     NavigationBarItem(
                         icon = { Icon(screen.icon, contentDescription = screen.label) },
-                        label = { Text(screen.label) },
+                        label = {
+                            if (screen.route == "settings") {
+                                Text(stringResource(id = R.string.nav_settings))
+                            } else {
+                                Text(screen.label)
+                            }
+                        },
                         selected = currentScreenRoute == screen.route,
                         onClick = {
                             if (screen.route == Screen.Analytics.route) {
-                                // Launch the enhanced analytics activity with all new features
                                 val intent = Intent(context, EnhancedAnalyticsActivity::class.java)
                                 context.startActivity(intent)
                             } else {
@@ -69,13 +78,13 @@ fun MainScreen() {
             .padding(innerPadding)
             .background(Color(0xFFF5F5F5))) {
             when (currentScreenRoute) {
-                Screen.Dashboard.route -> DashboardScreen(viewModel)
+                Screen.Dashboard.route -> DashboardScreen(mainViewModel)
                 Screen.Analytics.route -> {
-                    // Analytics now launches as separate activity with enhanced features
-                    DashboardScreen(viewModel) // Show dashboard while transitioning
+                    DashboardScreen(mainViewModel)
                 }
-                Screen.Logs.route -> LogsScreen(viewModel)
-                Screen.Settings.route -> SettingsScreen()
+                Screen.Logs.route -> LogsScreen(mainViewModel)
+                // Pass the insightsViewModel to the InsightsScreen
+                Screen.Settings.route -> InsightsScreen()
             }
         }
     }
