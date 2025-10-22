@@ -1,325 +1,193 @@
-@file:OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
-
-// Enhanced MyAccessibilityService.kt
-// Location: app/src/main/java/com/lohith/scrollsense/MyAccessibilityService.kt
-
 package com.lohith.scrollsense
 
 import android.accessibilityservice.AccessibilityService
+import android.content.pm.PackageManager
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import android.view.accessibility.AccessibilityEvent
-import android.view.accessibility.AccessibilityNodeInfo
-import kotlinx.coroutines.launch
 import com.lohith.scrollsense.data.AppDatabase
 import com.lohith.scrollsense.data.UsageEvent
-import com.lohith.scrollsense.util.CategoryClassifier
-import com.lohith.scrollsense.util.PackageNameHelper
+import com.lohith.scrollsense.util.EnhancedCategoryClassifier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import android.util.Log
+import kotlinx.coroutines.launch
+
+private const val TAG = "ScrollSenseSvc"
+private const val DEBOUNCE_DELAY_MS = 750L // Wait this long after an event before processing
 
 class MyAccessibilityService : AccessibilityService() {
-    companion object { private const val TAG = "ScrollSenseSvc" }
 
-    private lateinit var database: AppDatabase
-    private var currentPackage: String? = null
-    private var sessionStart: Long = 0
-    private var currentEventId: Long? = null
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private var lastExtendUpdate: Long = 0L
+    private val serviceJob = SupervisorJob()
+    private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
+    private val db by lazy { AppDatabase.getDatabase(this) }
+    private val usageEventDao by lazy { db.usageEventDao() }
+
+    // Use enhanced classifier instead of basic one
+    private val enhancedClassifier by lazy { EnhancedCategoryClassifier(this) }
+
+    // --- State variables to track the current session ---
+    private var currentSessionId: Long? = null
+    private var currentPackageName: String? = null
+    private var currentCategory: String? = null
+    private var lastEventTime: Long = 0
+
+    // --- Debounce handler to avoid processing too many events ---
+    private val debounceHandler = Handler(Looper.getMainLooper())
+    private var debounceRunnable: Runnable? = null
+
+    private val ignoredPackages = setOf(
+        "com.android.systemui",
+        "com.mi.android.globallauncher",
+        "com.miui.home",
+        "com.android.launcher3"
+    )
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        database = AppDatabase.getDatabase(this)
-        Log.d(TAG, "Service connected")
+        Log.d(TAG, "ScrollSense Accessibility Service Connected")
     }
 
-    override fun onAccessibilityEvent(event: AccessibilityEvent) {
-        val packageName = event.packageName?.toString() ?: return
-        if (packageName == packageName()) return // ignore own app
-        val now = System.currentTimeMillis()
-        Log.d(TAG, "Event type=${event.eventType} pkg=$packageName source=${event.className}")
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (event == null) return
 
-        // If within same package, extend session periodically
-        if (packageName == currentPackage) {
-            val elapsed = now - sessionStart
-            if (elapsed >= 1000) { // ignore sub-second noise
-                // Extend every 5s to keep charts relatively fresh
-                if (now - lastExtendUpdate >= 5000) {
-                    extendCurrentSession(now)
-                    lastExtendUpdate = now
-                }
-            }
-            return // don't start new session
-        }
-
-        val screenTitle = extractMeaningfulTitle(event, packageName)
-        if (isSystemNoise(screenTitle)) return
-
-        // Close any previous session (ensures duration written)
-        if (currentPackage != null && packageName != currentPackage) {
-            endCurrentSession(now)
-        }
-
-        startNewSession(packageName, screenTitle, now)
-    }
-
-    private fun packageName(): String = applicationContext.packageName
-
-    private fun startNewSession(packageName: String, screenTitle: String, startTime: Long) {
-        Log.d(TAG, "Start session pkg=$packageName title=$screenTitle @${startTime}")
-        currentPackage = packageName
-        sessionStart = startTime
-        lastExtendUpdate = startTime
-
-        val appLabel = PackageNameHelper.getAppLabel(this, packageName)
-        val category = CategoryClassifier.classifyContent(screenTitle, packageName)
-
-        val usageEvent = UsageEvent(
-            packageName = packageName,
-            appLabel = appLabel,
-            screenTitle = screenTitle,
-            category = category,
-            startTime = startTime,
-            endTime = startTime,
-            durationMs = 0
-        )
-
-        serviceScope.launch {
-            try {
-                currentEventId = database.usageEventDao().insert(usageEvent)
-                Log.d(TAG, "Inserted usage event id=$currentEventId for $packageName")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to insert usage event", e)
-            }
-        }
-    }
-
-    private fun extendCurrentSession(now: Long) {
-        val id = currentEventId ?: return
-        if (sessionStart <= 0) return
-        val duration = now - sessionStart
-        if (duration < 500) return
-        serviceScope.launch {
-            try {
-                database.usageEventDao().updateEventEnd(id, now, duration)
-                Log.d(TAG, "Extend session id=$id duration=$duration ms")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to extend session id=$id", e)
-            }
-        }
-    }
-
-    private fun endCurrentSession(now: Long = System.currentTimeMillis()) {
-        val id = currentEventId ?: return
-        if (sessionStart <= 0) return
-        val duration = now - sessionStart
-        if (duration < 300) { // discard ultra-short sessions
-            Log.d(TAG, "Discard short session id=$id duration=$duration ms (<300ms)")
-            currentEventId = null
-            currentPackage = null
-            sessionStart = 0
+        val packageName = event.packageName?.toString()
+        if (packageName.isNullOrBlank() ||
+            ignoredPackages.contains(packageName) ||
+            packageName == applicationContext.packageName) {
             return
         }
+
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
+            event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+
+            debounceRunnable?.let { debounceHandler.removeCallbacks(it) }
+            debounceRunnable = Runnable { processEvent(event) }
+            debounceHandler.postDelayed(debounceRunnable!!, DEBOUNCE_DELAY_MS)
+        }
+    }
+
+    private fun processEvent(event: AccessibilityEvent) {
+        val packageName = event.packageName.toString()
+        val eventTime = System.currentTimeMillis()
+
+        val source = event.source
+        if (source == null) {
+            endCurrentSession(eventTime)
+            return
+        }
+
+        val screenTextBuilder = StringBuilder()
+        collectTextFromNodes(source, screenTextBuilder)
+        val screenText = screenTextBuilder.toString().trim()
+        source.recycle()
+
+        if (screenText.isBlank()) {
+            return
+        }
+
         serviceScope.launch {
-            try {
-                database.usageEventDao().updateEventEnd(id, now, duration)
-                Log.d(TAG, "End session id=$id duration=$duration ms (accepted=${duration >= 300})")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to end session id=$id", e)
+            // Use enhanced classifier with previous category context
+            val classificationResult = enhancedClassifier.classifyContent(
+                screenText,
+                packageName,
+                currentCategory
+            )
+
+            // Only change session if category changed significantly or confidence is high
+            val shouldChangeSession = packageName != currentPackageName ||
+                (classificationResult.category != currentCategory && classificationResult.confidence > 0.7f)
+
+            if (shouldChangeSession) {
+                endCurrentSession(eventTime)
+                startNewSession(packageName, screenText, classificationResult, eventTime)
             }
         }
-        currentEventId = null
-        currentPackage = null
-        sessionStart = 0
     }
 
-    // Add better text extraction logic
-    private fun extractMeaningfulTitle(event: AccessibilityEvent, packageName: String): String {
-        return when {
-            packageName.contains("youtube") -> extractYouTubeTitle(event)
-            packageName.contains("incallui") -> extractCallTitle(event)
-            packageName.contains("whatsapp") -> extractWhatsAppTitle(event)
-            else -> extractGenericTitle(event)
+    private fun startNewSession(
+        packageName: String,
+        screenTitle: String,
+        classificationResult: com.lohith.scrollsense.util.ClassificationResult,
+        startTime: Long
+    ) {
+        serviceScope.launch {
+            val appLabel = getAppName(packageName)
+            val newEvent = UsageEvent(
+                startTime = startTime,
+                endTime = startTime,
+                durationMs = 0,
+                packageName = packageName,
+                appLabel = appLabel,
+                screenTitle = screenTitle,
+                category = classificationResult.category,
+                subcategory = classificationResult.subcategory,
+                confidence = classificationResult.confidence
+            )
+            val id = usageEventDao.insert(newEvent)
+
+            // Update current session state
+            currentSessionId = id
+            currentPackageName = packageName
+            currentCategory = classificationResult.category
+            lastEventTime = startTime
+
+            Log.d(TAG, "Started session: $appLabel -> ${classificationResult.category} (${classificationResult.confidence})")
         }
     }
 
+    private fun endCurrentSession(endTime: Long) {
+        val capturedSessionId = currentSessionId ?: return
 
-    private fun extractYouTubeTitle(event: AccessibilityEvent): String {
-        // Look for video title in specific YouTube elements
-        val rootNode = rootInActiveWindow ?: return event.text?.toString() ?: ""
-
-        // Search for video title elements
-        val titleNodes = findNodesBySelector(rootNode, listOf(
-            "android.widget.TextView", // Main title
-            "android.view.ViewGroup" // Title container
-        ))
-
-        for (node in titleNodes) {
-            val text = node.text?.toString()
-            if (text != null && isValidYouTubeTitle(text)) {
-                return text
+        val duration = endTime - lastEventTime
+        if (duration < 500) { // Discard sessions less than 0.5s
+            serviceScope.launch {
+                usageEventDao.deleteById(capturedSessionId)
+                Log.d(TAG, "Discarded short session: ${duration}ms")
             }
-        }
-
-        return event.text?.toString() ?: "YouTube Content"
-    }
-
-    private fun isValidYouTubeTitle(text: String): Boolean {
-        // Filter out UI elements and suggestions
-        val invalidPatterns = listOf(
-            "Subscribe", "Like", "Share", "Comment",
-            "Up next", "Autoplay", "Settings",
-            "More videos", "Playlist"
-        )
-
-        return text.length > 10 &&
-                !invalidPatterns.any { text.contains(it, ignoreCase = true) } &&
-                !text.matches(Regex("\\d+:\\d+")) // Not duration
-    }
-
-    private fun extractCallTitle(event: AccessibilityEvent): String {
-        val rootNode = rootInActiveWindow ?: return "Phone Call"
-
-        // Look for contact name or phone number
-        val contactNodes = findNodesBySelector(rootNode, listOf(
-            "android.widget.TextView",
-            "android.widget.EditText"
-        ))
-
-        for (node in contactNodes) {
-            val text = node.text?.toString()
-            if (text != null && isValidContactInfo(text)) {
-                return "Call: $text"
+        } else {
+            serviceScope.launch {
+                usageEventDao.updateSessionEndTime(capturedSessionId, endTime, duration)
+                Log.d(TAG, "Ended session: ${duration}ms")
             }
         }
 
-        return "Phone Call"
+        // Clear current session state
+        currentSessionId = null
+        currentPackageName = null
+        currentCategory = null
     }
 
-    private fun isValidContactInfo(text: String): Boolean {
-        // Check if it's a valid contact name or phone number
-        return text.length > 2 &&
-                !text.contains("Call") &&
-                !text.contains("End") &&
-                !text.contains("Mute") &&
-                !text.matches(Regex("\\d{1,2}:\\d{2}")) // Not call duration
-    }
-
-    private fun extractWhatsAppTitle(event: AccessibilityEvent): String {
-        val text = event.text?.toString() ?: return "WhatsApp"
-
-        // Filter out UI noise
-        if (isWhatsAppUIElement(text)) {
-            return "WhatsApp Chat"
-        }
-
-        // Extract chat name or meaningful content
-        return when {
-            text.contains(":") && text.length < 100 -> "Chat: ${text.substringBefore(":")}"
-            text.length < 50 -> text
-            else -> "WhatsApp Chat"
+    private fun getAppName(packageName: String): String {
+        return try {
+            packageManager.getApplicationLabel(packageManager.getApplicationInfo(packageName, 0)).toString()
+        } catch (e: PackageManager.NameNotFoundException) {
+            packageName
         }
     }
 
-    private fun isWhatsAppUIElement(text: String): Boolean {
-        val uiElements = listOf(
-            "Voice message", "Double tap", "slide left", "slide up",
-            "Type a message", "Camera", "Microphone"
-        )
-        return uiElements.any { text.contains(it, ignoreCase = true) }
-    }
+    private fun collectTextFromNodes(node: android.view.accessibility.AccessibilityNodeInfo?, builder: StringBuilder) {
+        if (node == null) return
 
-    private fun extractInstagramTitle(event: AccessibilityEvent): String {
-        val text = event.text?.toString() ?: return "Instagram"
-
-        // Filter out common Instagram UI elements
-        if (isInstagramUIElement(text)) {
-            return "Instagram Feed"
-        }
-
-        return when {
-            text.contains("said") -> "Instagram Comment"
-            text.contains("@") && text.length < 50 -> "Profile: $text"
-            text.length < 100 -> text
-            else -> "Instagram Feed"
-        }
-    }
-
-    private fun isInstagramUIElement(text: String): Boolean {
-        val uiElements = listOf(
-            "Double tap to like", "likes", "ago", "Follow",
-            "Following", "View profile", "Message"
-        )
-        return uiElements.any { text.contains(it, ignoreCase = true) }
-    }
-
-    private fun extractBrowserTitle(event: AccessibilityEvent): String {
-        val rootNode = rootInActiveWindow ?: return "Web Page"
-
-        // Look for page title in address bar or title element
-        val titleNodes = findNodesBySelector(rootNode, listOf(
-            "android.widget.EditText", // Address bar
-            "android.widget.TextView"  // Page title
-        ))
-
-        for (node in titleNodes) {
-            val text = node.text?.toString()
-            if (text != null && isValidWebTitle(text)) {
-                return text
+        node.text?.let { text ->
+            if (text.isNotBlank()) {
+                builder.append(text).append(" ")
             }
         }
 
-        return event.text?.toString() ?: "Web Page"
-    }
-
-    private fun isValidWebTitle(text: String): Boolean {
-        return text.length > 5 &&
-                !text.startsWith("http") &&
-                !text.contains("Search") &&
-                !text.contains("Address bar")
-    }
-
-    private fun extractGenericTitle(event: AccessibilityEvent): String {
-        val text = event.text?.toString() ?: return "Unknown Content"
-
-        // Return first meaningful text that's not too long
-        return when {
-            text.length <= 100 -> text
-            else -> text.substring(0, 97) + "..."
+        for (i in 0 until node.childCount) {
+            collectTextFromNodes(node.getChild(i), builder)
         }
     }
 
-    private fun findNodesBySelector(root: AccessibilityNodeInfo, classNames: List<String>): List<AccessibilityNodeInfo> {
-        val nodes = mutableListOf<AccessibilityNodeInfo>()
-
-        fun traverse(node: AccessibilityNodeInfo) {
-            if (classNames.contains(node.className?.toString())) {
-                nodes.add(node)
-            }
-            for (i in 0 until node.childCount) {
-                node.getChild(i)?.let { traverse(it) }
-            }
-        }
-
-        traverse(root)
-        return nodes
+    override fun onInterrupt() {
+        Log.d(TAG, "ScrollSense Accessibility Service Interrupted")
     }
 
-    private fun isSystemNoise(text: String): Boolean {
-        val noisePatterns = listOf(
-            "Signal strength:", "Today:", "This month:", "MB", "GB", "5G+", "4G",
-            "Double tap and hold", "Button.", "Expand", "Collapse",
-            "Uninstalling will remove", "Star rating:", "Install",
-            "More connectivity options", "Fingerprints, face data"
-        )
-
-        return noisePatterns.any { text.contains(it, ignoreCase = true) } ||
-                text.matches(Regex("\\d+\\.\\d+\\s*(MB|GB)")) ||
-                text.matches(Regex("\\d+ out of \\d+ bars?"))
+    override fun onDestroy() {
+        super.onDestroy()
+        serviceJob.cancel()
+        Log.d(TAG, "ScrollSense Accessibility Service Destroyed")
     }
-
-    override fun onInterrupt() { Log.d(TAG, "Interrupt"); endCurrentSession() }
-    override fun onDestroy() { Log.d(TAG, "Destroy"); endCurrentSession(); serviceScope.cancel(); super.onDestroy() }
 }

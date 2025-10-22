@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-    <style name="Theme.ScrollSense" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.ScrollSense" parent="Theme.Material3.Light">
+        <!-- Customize if needed -->
+    </style>
+    <style name="Theme.ScrollSense.NoActionBar" parent="Theme.Material3.Light.NoActionBar">
+        <!-- Customize if needed -->
+    </style>
 </resources>

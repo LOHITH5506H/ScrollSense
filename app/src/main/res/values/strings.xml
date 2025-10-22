@@ -1,6 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">ScrollSense</string>
-    <string name="accessibility_service_description">
-        ScrollSense tracks app usage and screen titles to help categorize your content consumption.
-    </string>
+
+    <!-- Navigation -->
+    <string name="nav_dashboard">Dashboard</string>
+    <string name="nav_detailed_stats">Analytics</string>
+    <string name="nav_settings">Insights</string>
+
+    <!-- Menu -->
+    <string name="action_clear_logs">Clear Logs</string>
+    <string name="action_export_data">Export Data</string>
+    <string name="action_about">About</string>
+
+    <!-- Permission -->
+    <string name="usage_access_required">Usage Access Required</string>
+    <string name="usage_access_message">ScrollSense needs access to usage statistics to track your app usage. This data stays on your device and is not shared with anyone.</string>
+    <string name="grant_permission">Grant Permission</string>
+
+    <!-- Dashboard -->
+    <string name="today_summary">Today\'s Summary</string>
+    <string name="screen_time">Screen Time</string>
+    <string name="most_used_app">Most Used App</string>
+    <string name="productivity">Productivity</string>
+    <string name="usage_by_category">Usage by Category</string>
+    <string name="category_comparison">Category Comparison</string>
+    <string name="most_used_apps">Most Used Apps</string>
+    <string name="ai_powered_insights">AI-Powered Insights</string>
+
+    <!-- Messages -->
+    <string name="no_data_available">No usage data available</string>
+    <string name="loading_insights">Loading insights…</string>
+    <string name="refresh_or_check_permissions">Pull down to refresh or check permissions</string>
+    <string name="data_refreshed_successfully">Data refreshed successfully!</string>
+    <string name="logs_cleared_successfully">Logs cleared successfully</string>
+
+    <!-- About -->
+    <string name="about_scrollsense">About ScrollSense</string>
+    <string name="about_message">ScrollSense v1.0\n\nA digital wellness app that helps you track and understand your mobile usage patterns using AI-powered categorization.\n\nFeatures:\n• Accurate usage tracking\n• AI-powered app categorization\n• Detailed analytics\n• Productivity insights\n• Clean Material Design UI\n\nDeveloped with ❤️ for digital wellness.</string>
+
+    <!-- Accessibility -->
+    <string name="accessibility_service_description">Provides enhanced usage context for app tracking (no personal data collected or transmitted).</string>
+
+    <!-- Shortcuts -->
+    <string name="shortcut_dashboard_short">Dashboard</string>
+    <string name="shortcut_dashboard_long">Open Dashboard</string>
+
+    <!-- Font provider certificates -->
+    <array name="com_google_android_gms_fonts_certs">
+        <item>@array/com_google_android_gms_fonts_certs_dev</item>
+        <item>@array/com_google_android_gms_fonts_certs_prod</item>
+    </array>
+    <string-array name="com_google_android_gms_fonts_certs_dev">
+        <item>MIIEqDCCA5CgAwIBAgIJANWFuGx90071MA0GCSqGSIb3DQEBBAUAMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTAeFw0wODA0MTUyMzM2NTZaFw0zNTA5MDEyMzM2NTZaMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTCCASAwDQYJKoZIhvcNAQEBBQADggENADCCAQgCggEBAKtWLgDYO6IIrgqWbxJOKdoR8qtW0I9Y4sypEwPpt1TTcvZApxsdyxMJZ2JORland2qSGT2y5b+3JKkedxiLDmpHpDsz2WCbdxgxRczfey5YZnTJ4VZbH0xqWVW/8lGmPav5xVwnIiJS6HXk+BVKZF+JcWjAsb/GEuq/eFdpuzSqeYTcfi6idkyugwfYwXFU1+5fZKUaRKYCwkkFQVfcAs1fXA5V+++FGfvjJ/CxURaSxaBvGdGDhfXE28LWuT9ozCl5xw4Yq5OGazvV24mZVSoOO0yZ31j7kYvtwYK6NeADwbSxDdJEqO4k//0zOHKrUiGYXtqw/A0LFFtqoZKFjnkCAQOjgfwwgfkwHQYDVR0OBBYEFI0cxb6VTEM8YYY6FbBMvAPyT+CyMIHJBgNVHSMEgcEwgb6AFI0cxb6VTEM8YYY6FbBMvAPyT+CyoYGapIGXMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbYIJANWFuGx90071MAwGA1UdEwQFMAMBAf8wDQYJKoZIhvcNAQEEBQADggEBABnTDPEF+3iSP0wNfdIjIz1AlnrPzgAIHVvXxunW7SBrDhEglQZBbKJEk5kT0mtKoOD1JMrSu1xuTKEBahWRbqHsXclaXjoBADb0kkjVEJu/Lh5hgYZnOjvlba8Ld7HCKePCVePoTJBdI4fvugnL8TsgK05aIskyY0hKI9L8KfqfGTl1lzOv2KoWD0KWwtAWPoGChZxmQ+nBli+gwYMzM1vAkP+aayLe0a1EQimlOalO762r0GXO0ks+UeXde2Z4e+8S/pf7pITEI/tP+MxJTALw9QUWEv9lKTk+jkbqxbsh8nfBUapfKqYn0eidpwq2AzVp3juYl7//fKnaPhJD9gs=</item>
+    </string-array>
+    <string-array name="com_google_android_gms_fonts_certs_prod">
+        <item>MIIFYDCCA0igAwIBAgIJAOokR9FF65e5MA0GCSqGSIb3DQEBCwUAMFoxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5HZW9UcnVzdCBJbmMuMR8wHQYDVQQLExZ3d3cuZ2VvdHJ1c3QuY29tL3NzbC9DUzEhMB8GA1UEAxMYR2VvVHJ1c3QgUlNBIERvbWFpbiBDQSAyMB4XDTIxMDUyNTAwMDAwMFoXDTI0MDUyNDEyMDAwMFowTzELMAkGA1UEBhMCVVMxFzAVBgNVBAoTDkdlb1RydXN0IEluYy4xHzAdBgNVBAsTFnd3dy5nZW90cnVzdC5jb20vc3NsL0NTMSEwHwYDVQQDExhHZW9UcnVzdCBSU0EgRG9tYWluIENBIDIwggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIKAoICAQC9iWwcx5U2KLaOGOSIokwYqm25s+Eea31LdKc6KV+/vrCrT8QjWw0MBsIU/IvNHFV3UuhxCUe5t2Qwly4qF8M0rqw68LvoLjgX03BfYeR+5OYmClpHWHluxR3ă</item>
+    </string-array>
 </resources>

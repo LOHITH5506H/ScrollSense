@@ -2,10 +2,25 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Special permission for reading app usage times (must be granted manually by the user) -->
-    <uses-permission
-        android:name="android.permission.PACKAGE_USAGE_STATS"
+    <!-- Essential permissions for ScrollSense functionality -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE"
+        tools:ignore="ProtectedPermissions" />
+
+    <!-- Queries for package visibility (Android 11+) -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+        </intent>
+    </queries>
 
     <application
         android:allowBackup="true"
@@ -15,13 +30,13 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.ScrollSense">
+        android:theme="@style/Theme.ScrollSense"
+        tools:targetApi="31">
 
         <!-- Main Activity -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:label="@string/app_name"
             android:theme="@style/Theme.ScrollSense">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -29,12 +44,23 @@
             </intent-filter>
         </activity>
 
-        <!-- Accessibility Service -->
+        <!-- Enhanced Analytics Activity -->
+        <activity
+            android:name=".ui.EnhancedAnalyticsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.ScrollSense" />
+
+        <!-- Charts Activity (existing) -->
+        <activity
+            android:name=".ui.ChartsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.ScrollSense" />
+
+        <!-- Accessibility Service for usage tracking -->
         <service
             android:name=".MyAccessibilityService"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
-            android:exported="false"
-            android:description="@string/accessibility_service_description">
+            android:exported="true"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />
             </intent-filter>
@@ -42,6 +68,23 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service_config" />
         </service>
+
+        <!-- Background Analytics Service -->
+        <service
+            android:name=".service.AnalyticsBackgroundService"
+            android:enabled="true"
+            android:exported="false" />
+
+        <!-- File Provider for PDF exports and file sharing -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
     </application>
 
