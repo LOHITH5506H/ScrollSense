@@ -14,7 +14,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.lohith.scrollsense.data.UsageEvent
 import com.lohith.scrollsense.util.PackageNameHelper
@@ -81,12 +84,38 @@ fun LogCard(event: UsageEvent) {
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
-            Text(text = "Screen: ${event.screenTitle}", style = MaterialTheme.typography.bodyMedium)
-            Text(text = "Category: ${event.category}", style = MaterialTheme.typography.bodySmall)
+
+            // MODIFIED: Use buildAnnotatedString to bold the label
             Text(
-                text = "Duration: ${formatDuration(event.durationMs)}",
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.SemiBold
+                text = buildAnnotatedString {
+                    withStyle(style = SpanStyle(fontWeight = FontWeight.SemiBold)) {
+                        append("Screen: ")
+                    }
+                    append(event.screenTitle)
+                },
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            // MODIFIED: Use buildAnnotatedString to bold the label
+            Text(
+                text = buildAnnotatedString {
+                    withStyle(style = SpanStyle(fontWeight = FontWeight.SemiBold)) {
+                        append("Category: ")
+                    }
+                    append(event.category)
+                },
+                style = MaterialTheme.typography.bodySmall
+            )
+
+            // MODIFIED: Use buildAnnotatedString to bold the label
+            Text(
+                text = buildAnnotatedString {
+                    withStyle(style = SpanStyle(fontWeight = FontWeight.SemiBold)) {
+                        append("Duration: ")
+                    }
+                    append(formatDuration(event.durationMs))
+                },
+                style = MaterialTheme.typography.bodySmall
             )
         }
     }

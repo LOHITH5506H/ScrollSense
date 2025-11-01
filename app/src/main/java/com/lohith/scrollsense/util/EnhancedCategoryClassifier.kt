@@ -7,6 +7,7 @@ import com.lohith.scrollsense.data.UserFeedback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.*
+import java.util.regex.Pattern
 import org.json.JSONObject
 
 /**
@@ -22,6 +23,7 @@ class EnhancedCategoryClassifier(private val context: Context) {
         private const val TAG = "EnhancedClassifier"
 
         // Known app package mappings for high accuracy
+        // MODIFIED: Updated categories to match your new JSON file
         private val PACKAGE_CATEGORY_MAP = mapOf(
             // Social
             "com.whatsapp" to "social",
@@ -29,7 +31,7 @@ class EnhancedCategoryClassifier(private val context: Context) {
             "com.instagram.android" to "social",
             "com.twitter.android" to "social",
             "com.snapchat.android" to "social",
-            "com.linkedin.android" to "business",
+            "com.linkedin.android" to "business", // Changed from social
 
             // Entertainment
             "com.google.android.youtube" to "entertainment",
@@ -47,17 +49,22 @@ class EnhancedCategoryClassifier(private val context: Context) {
             // News
             "com.google.android.apps.magazines" to "news",
             "flipboard.app" to "news",
-            "com.twitter.android" to "news", // Can be both social and news
 
-            // Productivity
-            "com.google.android.apps.docs.editors.docs" to "productivity",
-            "com.microsoft.office.word" to "productivity",
-            "com.google.android.gm" to "productivity",
+            // Productivity & Business
+            "com.google.android.apps.docs.editors.docs" to "business", // Changed from productivity
+            "com.microsoft.office.word" to "business", // Changed from productivity
+            "com.google.android.gm" to "business", // Changed from productivity
 
             // Shopping
-            "com.amazon.mShop.android.shopping" to "shopping",
-            "com.flipkart.android" to "shopping",
-            "com.myntra.android" to "shopping",
+            "com.amazon.mShop.android.shopping" to "Shopping", // Match JSON case
+            "com.flipkart.android" to "Shopping",
+            "com.myntra.android" to "Shopping",
+
+            // --- NEW: Added Finance packages ---
+            "zebpay.Application" to "Finance",
+            "com.google.android.apps.nbu.paisa.user" to "Finance", // Google Pay
+            "com.phonepe.app" to "Finance", // PhonePe
+            "net.one97.paytm" to "Finance", //Paytm
 
             // Communication/Calls
             "com.android.incallui" to "social",
@@ -70,7 +77,7 @@ class EnhancedCategoryClassifier(private val context: Context) {
             "com.udemy.android" to "education"
         )
 
-        // Content keywords with weights for better classification
+        // KEPT: This is your existing functionality
         private val WEIGHTED_KEYWORDS = mapOf(
             "social" to mapOf(
                 "chat" to 3.0f, "message" to 3.0f, "call" to 3.0f, "video call" to 4.0f,
@@ -96,10 +103,12 @@ class EnhancedCategoryClassifier(private val context: Context) {
                 "learn" to 3.0f, "study" to 3.0f, "course" to 4.0f, "lesson" to 3.0f,
                 "tutorial" to 3.0f, "education" to 4.0f, "knowledge" to 2.0f, "exam" to 3.0f
             ),
+            // Note: Your JSON has "Shopping" (capital S). We will align to that.
             "shopping" to mapOf(
                 "buy" to 4.0f, "price" to 3.0f, "cart" to 4.0f, "order" to 3.0f,
                 "purchase" to 4.0f, "sale" to 2.0f, "discount" to 2.0f, "deal" to 2.0f
             ),
+            // Note: Your JSON has "business".
             "productivity" to mapOf(
                 "document" to 3.0f, "email" to 4.0f, "calendar" to 3.0f, "meeting" to 3.0f,
                 "task" to 2.0f, "note" to 2.0f, "reminder" to 2.0f, "schedule" to 2.0f
@@ -111,9 +120,10 @@ class EnhancedCategoryClassifier(private val context: Context) {
         AppDatabase.getDatabase(context).userFeedbackDao()
     }
 
-    // --- Adult veto (res/raw/veto_keywords_en.json) ---
+    // KEPT: This is your existing functionality for adult veto
     @Volatile private var adultVetoKeywords: Set<String>? = null
 
+    // KEPT: This is your existing functionality
     private fun ensureAdultVetoLoaded(): Set<String> {
         adultVetoKeywords?.let { return it }
         val loaded = runCatching {
@@ -137,6 +147,7 @@ class EnhancedCategoryClassifier(private val context: Context) {
         return loaded
     }
 
+    // KEPT: This is your existing functionality
     private fun containsAdultVeto(text: String): Boolean {
         if (text.isBlank()) return false
         val lower = text.lowercase(Locale.getDefault())
@@ -155,13 +166,32 @@ class EnhancedCategoryClassifier(private val context: Context) {
         return false
     }
 
+    // --- NEW: Load keywords dynamically from keywords_en.json ---
+    private val loadedJsonKeywords: Map<String, List<Pattern>> by lazy {
+        Log.d(TAG, "Loading keywords from KeywordLoader...")
+        val allKeywords = KeywordLoader.loadAll(context)
+        // Load only the "en" keywords
+        val enKeywords = allKeywords.mapValues { (_, langMap) ->
+            langMap["en"] ?: emptyList()
+        }.filterValues { it.isNotEmpty() }
+        Log.d(TAG, "Loaded ${enKeywords.size} JSON categories: ${enKeywords.keys.joinToString(", ")}")
+
+        // Pre-compile regex patterns for efficiency
+        enKeywords.mapValues { (_, keywords) ->
+            keywords.map {
+                Pattern.compile("\\b${Pattern.quote(it)}\\b", Pattern.CASE_INSENSITIVE)
+            }
+        }
+    }
+
+
     suspend fun classifyContent(
         screenText: String,
         packageName: String,
         previousCategory: String? = null
     ): ClassificationResult = withContext(Dispatchers.IO) {
 
-        // Strategy 0: Adult veto — highest priority
+        // KEPT: Strategy 0 (Your existing functionality)
         if (containsAdultVeto(screenText)) {
             return@withContext ClassificationResult(
                 category = "adult",
@@ -171,7 +201,7 @@ class EnhancedCategoryClassifier(private val context: Context) {
             )
         }
 
-        // Strategy 1: Package-based classification (highest confidence)
+        // KEPT: Strategy 1 (Your existing functionality)
         PACKAGE_CATEGORY_MAP[packageName]?.let { category ->
             return@withContext ClassificationResult(
                 category = category,
@@ -181,7 +211,7 @@ class EnhancedCategoryClassifier(private val context: Context) {
             )
         }
 
-        // Strategy 2: User feedback learning
+        // KEPT: Strategy 2 (Your existing functionality)
         val userFeedback = userFeedbackDao.getFeedbackForPackage(packageName)
         userFeedback?.let { feedback ->
             if (feedback.confidence > 0.8f) {
@@ -194,19 +224,19 @@ class EnhancedCategoryClassifier(private val context: Context) {
             }
         }
 
-        // Strategy 3: Weighted keyword analysis
-        val keywordResult = classifyByWeightedKeywords(screenText.lowercase())
+        // MODIFIED: Strategy 3 (Combines old and new keyword logic)
+        val keywordResult = classifyByHybridKeywords(screenText.lowercase())
         if (keywordResult.confidence > 0.6f) {
             return@withContext keywordResult
         }
 
-        // Strategy 4: Context-based classification
+        // KEPT: Strategy 4 (Your existing functionality)
         val contextResult = classifyByContext(screenText, packageName, previousCategory)
         if (contextResult.confidence > 0.5f) {
             return@withContext contextResult
         }
 
-        // Fallback: Return "other" with low confidence
+        // KEPT: Fallback (Your existing functionality)
         ClassificationResult(
             category = "other",
             confidence = 0.3f,
@@ -215,21 +245,34 @@ class EnhancedCategoryClassifier(private val context: Context) {
         )
     }
 
-    private fun classifyByWeightedKeywords(text: String): ClassificationResult {
+    /**
+     * MODIFIED: Renamed to `classifyByHybridKeywords`
+     * This function now combines your old `WEIGHTED_KEYWORDS`
+     * with the new `loadedJsonKeywords` from `keywords_en.json`.
+     */
+    private fun classifyByHybridKeywords(text: String): ClassificationResult {
         val categoryScores = mutableMapOf<String, Float>()
 
+        // --- PART 1: Keep your existing WEIGHTED_KEYWORDS logic ---
         WEIGHTED_KEYWORDS.forEach { (category, keywords) ->
             var score = 0.0f
             keywords.forEach { (keyword, weight) ->
+                // This is your old, less accurate "split" logic, kept as requested
                 val occurrences = text.split(keyword).size - 1
                 score += occurrences * weight
             }
             if (score > 0) {
-                categoryScores[category] = score
+                // We must align category names, e.g., "shopping" -> "Shopping"
+                val categoryKey = when(category) {
+                    "shopping" -> "Shopping"
+                    "productivity" -> "business" // Re-map productivity to business
+                    else -> category
+                }
+                categoryScores[categoryKey] = (categoryScores[categoryKey] ?: 0f) + score
             }
         }
 
-        // --- NEW: add adult scoring from veto tokens as weighted features ---
+        // --- PART 2: Keep your existing adult scoring logic ---
         runCatching {
             val veto = ensureAdultVetoLoaded()
             if (veto.isNotEmpty()) {
@@ -242,10 +285,9 @@ class EnhancedCategoryClassifier(private val context: Context) {
                         ("\\b" + java.util.regex.Pattern.quote(token) + "\\b").toRegex(RegexOption.IGNORE_CASE)
                             .findAll(lower).count()
                     } else {
-                        // simple contains -> approximate to 1 occurrence
                         if (lower.contains(token)) 1 else 0
                     }
-                    adultScore += occurrences * 5.0f // strong weight for explicit signals
+                    adultScore += occurrences * 5.0f // strong weight
                 }
                 if (adultScore > 0) {
                     categoryScores["adult"] = maxOf(categoryScores["adult"] ?: 0f, adultScore)
@@ -253,13 +295,33 @@ class EnhancedCategoryClassifier(private val context: Context) {
             }
         }
 
+        // --- PART 3: ADD new logic for keywords_en.json ---
+        // This will find "Finance", "Business", "Fitness", etc.
+        // It also reinforces scores for "social", "adult", etc.
+        loadedJsonKeywords.forEach { (category, patterns) ->
+            var score = 0.0f
+            patterns.forEach { pattern ->
+                val matcher = pattern.matcher(text)
+                while (matcher.find()) {
+                    score += 1.5f // Add a standard score for each match
+                }
+            }
+            if (score > 0) {
+                // Add this score to any existing score
+                categoryScores[category] = (categoryScores[category] ?: 0f) + score
+            }
+        }
+
+        // --- Find the best match from the COMBINED scores ---
         val bestMatch = categoryScores.maxByOrNull { it.value }
+
+        // Use your existing threshold
         return if (bestMatch != null && bestMatch.value > 3.0f) {
-            val confidence = minOf(bestMatch.value / 10.0f, 0.85f)
+            val confidence = (bestMatch.value / 10.0f).coerceIn(0.6f, 0.9f)
             ClassificationResult(
                 category = bestMatch.key,
                 confidence = confidence,
-                method = "weighted-keywords",
+                method = "hybrid-keywords",
                 subcategory = getSubcategory(bestMatch.key, text)
             )
         } else {
@@ -273,14 +335,21 @@ class EnhancedCategoryClassifier(private val context: Context) {
         previousCategory: String?
     ): ClassificationResult {
         // Use app package name patterns for additional context
+        // MODIFIED: Added new patterns
         val packagePatterns = mapOf(
             "game" to "games",
             "social" to "social",
             "news" to "news",
             "music" to "entertainment",
             "video" to "entertainment",
-            "shop" to "shopping",
-            "learn" to "education"
+            "shop" to "Shopping",
+            "learn" to "education",
+            "bank" to "Finance",
+            "pay" to "Finance",
+            "trade" to "Finance",
+            "wallet" to "Finance",
+            "fitness" to "fitness",
+            "health" to "fitness"
         )
 
         packagePatterns.forEach { (pattern, category) ->
@@ -310,31 +379,39 @@ class EnhancedCategoryClassifier(private val context: Context) {
         return ClassificationResult("other", 0.2f, "context-unknown", "")
     }
 
+    // MODIFIED: Added "Finance" subcategory
     private fun getSubcategory(category: String, text: String): String {
-        return when (category) {
+        val lowerText = text.lowercase(Locale.getDefault())
+        return when (category.lowercase(Locale.getDefault())) {
             "adult" -> when {
-                text.contains("webcam", ignoreCase = true) -> "webcam"
-                text.contains("video", ignoreCase = true) -> "videos"
-                text.contains("photo", ignoreCase = true) || text.contains("image", ignoreCase = true) || text.contains("gallery", ignoreCase = true) -> "photos"
+                lowerText.contains("webcam") -> "webcam"
+                lowerText.contains("video") -> "videos"
+                lowerText.contains("photo") || lowerText.contains("image") || lowerText.contains("gallery") -> "photos"
                 else -> "general_adult"
             }
             "social" -> when {
-                text.contains("call", ignoreCase = true) -> "voice_calls"
-                text.contains("video", ignoreCase = true) -> "video_calls"
-                text.contains("message", ignoreCase = true) -> "messaging"
+                lowerText.contains("call") -> "voice_calls"
+                lowerText.contains("video") -> "video_calls"
+                lowerText.contains("message") -> "messaging"
                 else -> "general_social"
             }
             "entertainment" -> when {
-                text.contains("music", ignoreCase = true) -> "music"
-                text.contains("video", ignoreCase = true) -> "video"
-                text.contains("movie", ignoreCase = true) -> "movies"
+                lowerText.contains("music") -> "music"
+                lowerText.contains("video") -> "video"
+                lowerText.contains("movie") -> "movies"
                 else -> "general_entertainment"
             }
             "games" -> when {
-                text.contains("puzzle", ignoreCase = true) -> "puzzle"
-                text.contains("action", ignoreCase = true) -> "action"
-                text.contains("strategy", ignoreCase = true) -> "strategy"
+                lowerText.contains("puzzle") -> "puzzle"
+                lowerText.contains("action") -> "action"
+                lowerText.contains("strategy") -> "strategy"
                 else -> "general_games"
+            }
+            "finance" -> when {
+                lowerText.contains("otp") || lowerText.contains("verification") -> "verification"
+                lowerText.contains("payment") || lowerText.contains("upi") -> "payment"
+                lowerText.contains("trade") || lowerText.contains("crypto") -> "trading"
+                else -> "general_finance"
             }
             else -> ""
         }

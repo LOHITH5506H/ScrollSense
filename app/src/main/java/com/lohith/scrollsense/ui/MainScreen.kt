@@ -1,117 +1,139 @@
 package com.lohith.scrollsense.ui
 
-import android.content.Intent
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.imePadding // <-- ADD THIS IMPORT
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.lohith.scrollsense.R
+import androidx.navigation.NavController
+import androidx.navigation.NavDestination
+import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import com.lohith.scrollsense.viewmodel.MainViewModel
-import com.lohith.scrollsense.viewmodel.InsightsViewModel
-
-// Defines the screens in the app
-sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
-    object Dashboard : Screen("dashboard", "Dashboard", Icons.Filled.Home)
-    object Analytics : Screen("analytics", "Analytics", Icons.Filled.Info)
-    object Logs : Screen("logs", "Logs", Icons.AutoMirrored.Filled.List)
-    object Settings : Screen("settings", "Insights", Icons.Filled.Info) // Renamed for clarity
-}
+import com.lohith.scrollsense.viewmodel.ViewModelFactory
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen() {
-    val mainViewModel: MainViewModel = viewModel()
-    // Create an instance of the InsightsViewModel here
-    val insightsViewModel: InsightsViewModel = viewModel()
+fun MainScreen(viewModel: MainViewModel) {
+    val navController = rememberNavController()
+    val modalSheetState = rememberModalBottomSheetState()
+    val showSettingsSheet = remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
-    var currentScreenRoute by rememberSaveable { mutableStateOf(Screen.Dashboard.route) }
-    val screens = listOf(Screen.Dashboard, Screen.Analytics, Screen.Logs, Screen.Settings)
-    val context = LocalContext.current
-    var showSettings by remember { mutableStateOf(false) }
+    if (showSettingsSheet.value) {
+        SettingsSheet(
+            onDismiss = {
+                coroutineScope.launch {
+                    modalSheetState.hide()
+                    showSettingsSheet.value = false
+                }
+            },
+            modalSheetState = modalSheetState,
+            viewModel = viewModel
+        )
+    }
 
+    // MODIFIED: Added Modifier.imePadding()
     Scaffold(
-        containerColor = Color(0xFFF5F5F5),
+        modifier = Modifier.imePadding(), // <-- ADD THIS
         topBar = {
-            // Use CenterAlignedTopAppBar which is available in current Material3
-            CenterAlignedTopAppBar(
-                title = {
-                    val title = when (currentScreenRoute) {
-                        Screen.Dashboard.route -> stringResource(id = R.string.nav_dashboard)
-                        Screen.Analytics.route -> stringResource(id = R.string.nav_detailed_stats)
-                        Screen.Logs.route -> "Logs"
-                        else -> stringResource(id = R.string.settings_title)
-                    }
-                    Text(title)
-                },
+            TopAppBar(
+                title = { Text("ScrollSense") },
                 actions = {
-                    IconButton(onClick = { showSettings = true }) {
-                        Icon(Icons.Filled.Settings, contentDescription = stringResource(id = R.string.settings_title))
+                    IconButton(onClick = {
+                        coroutineScope.launch {
+                            modalSheetState.show()
+                            showSettingsSheet.value = true
+                        }
+                    }) {
+                        Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
                 }
             )
         },
         bottomBar = {
-            NavigationBar(containerColor = Color(0xFFF0F0F0)) {
-                screens.forEach { screen ->
-                    NavigationBarItem(
-                        icon = { Icon(screen.icon, contentDescription = screen.label) },
-                        label = {
-                            if (screen.route == "settings") {
-                                Text(stringResource(id = R.string.nav_settings))
-                            } else {
-                                Text(screen.label)
-                            }
-                        },
-                        selected = currentScreenRoute == screen.route,
-                        onClick = {
-                            if (screen.route == Screen.Analytics.route) {
-                                val intent = Intent(context, EnhancedAnalyticsActivity::class.java)
-                                context.startActivity(intent)
-                            } else {
-                                currentScreenRoute = screen.route
-                            }
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Color(0xFF512DA8),
-                            selectedTextColor = Color(0xFF512DA8),
-                            indicatorColor = Color(0xFFEDE7F6),
-                            unselectedIconColor = Color(0xFF616161),
-                            unselectedTextColor = Color(0xFF616161)
-                        )
-                    )
-                }
-            }
-        }
+            BottomNavigationBar(navController = navController)
+        },
+        floatingActionButton = {}
     ) { innerPadding ->
-        Box(modifier = Modifier
-            .padding(innerPadding)
-            .background(Color(0xFFF5F5F5))) {
-            when (currentScreenRoute) {
-                Screen.Dashboard.route -> DashboardScreen(mainViewModel)
-                Screen.Analytics.route -> {
-                    DashboardScreen(mainViewModel)
-                }
-                Screen.Logs.route -> LogsScreen(mainViewModel)
-                // Pass the insightsViewModel to the InsightsScreen
-                Screen.Settings.route -> InsightsScreen()
+        Box(modifier = Modifier.padding(innerPadding)) {
+            NavHost(navController, startDestination = "dashboard") {
+                composable("dashboard") { DashboardScreen(viewModel) }
+                composable("logs") { LogsScreen(viewModel) }
+                composable("analytics") { AnalyticsScreen(viewModel) }
+                composable("settings") { SettingsScreen(viewModel) } // This is the screen you're editing
             }
         }
+    }
+}
 
-        if (showSettings) {
-            SettingsSheet(viewModel = mainViewModel, onDismiss = { showSettings = false })
+@Composable
+fun BottomNavigationBar(navController: NavHostController) {
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = navBackStackEntry?.destination
+
+    NavigationBar {
+        BottomNavItem.items.forEach { item ->
+            AddItem(
+                item = item,
+                currentDestination = currentDestination,
+                navController = navController
+            )
         }
+    }
+}
+
+@Composable
+fun RowScope.AddItem(
+    item: BottomNavItem,
+    currentDestination: NavDestination?,
+    navController: NavHostController
+) {
+    NavigationBarItem(
+        label = { Text(item.title) },
+        icon = { Icon(item.icon, contentDescription = "Navigation Icon") },
+        selected = currentDestination?.hierarchy?.any {
+            it.route == item.route
+        } == true,
+        onClick = {
+            navController.navigate(item.route) {
+                // Pop up to the start destination of the graph to
+                // avoid building up a large stack of destinations
+                // on the back stack as users select items
+                popUpTo(navController.graph.startDestinationId) {
+                    saveState = true
+                }
+                // Avoid multiple copies of the same destination when
+                // re-selecting the same item
+                launchSingleTop = true
+                // Restore state when re-selecting a previously selected item
+                restoreState = true
+            }
+        }
+    )
+}
+
+sealed class BottomNavItem(val title: String, val icon: ImageVector, val route: String) {
+    object Dashboard : BottomNavItem("Dashboard", Icons.Default.Dashboard, "dashboard")
+    object Logs : BottomNavItem("Logs", Icons.Default.List, "logs")
+    object Analytics : BottomNavItem("Analytics", Icons.Default.Analytics, "analytics")
+    object Settings : BottomNavItem("Settings", Icons.Default.Settings, "settings") // This is the screen you're editing
+
+    companion object {
+        val items = listOf(Dashboard, Logs, Analytics, Settings)
     }
 }
