@@ -4,6 +4,7 @@
     <option name="migrationStatus" value="IN_PROGRESS" />
     <option name="pendingSessionIds">
       <option value="0772b4aa-f933-4b33-a1d4-5fe38a0c4ce8" />
+      <option value="18f542ae-6b29-49b4-b492-5475c284523f" />
       <option value="1d58cfe3-952a-49d0-8bbe-72e9d9cb5807" />
       <option value="1ef3d9b0-d7bd-49bf-8f26-da07506591e3" />
       <option value="27719437-5e54-4bd4-9d98-e455b15d1085" />
@@ -127,6 +128,13 @@
           <value>
             <set>
               <option value="026f467a-aecc-4927-8f3c-2bcfb789433c" />
+            </set>
+          </value>
+        </entry>
+        <entry key="a29e0fb5-c536-4f67-b639-d8c9fe00796b">
+          <value>
+            <set>
+              <option value="a7e1b388-c52a-4530-9870-d72cab8dccf0" />
             </set>
           </value>
         </entry>
