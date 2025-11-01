@@ -42,6 +42,13 @@ interface ContentSegmentDao {
         ORDER BY totalMs DESC
     """)
     suspend fun getTotalsForApp(pkg: String, fromMs: Long, toMs: Long): List<TotalByType>
+
+    // --- maintenance ---
+    @Query("DELETE FROM content_segments")
+    suspend fun clearAll()
+
+    @Query("DELETE FROM content_segments WHERE endTimeMs < :threshold")
+    suspend fun deleteOlderThan(threshold: Long)
 }
 
 data class TotalByAppAndType(

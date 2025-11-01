@@ -32,7 +32,10 @@ data class AppUsage(
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val usageEventDao = AppDatabase.getDatabase(application).usageEventDao()
+    private val db = AppDatabase.getDatabase(application)
+    private val usageEventDao = db.usageEventDao()
+    private val contentSegmentDao = db.contentSegmentDao()
+    private val dailySummaryDao = db.dailySummaryDao()
 
     // Holds the currently selected date range ("today", "week", etc.)
     private val _dateRange = MutableStateFlow("today")
@@ -94,6 +97,43 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun clearAllData() {
+        viewModelScope.launch {
+            usageEventDao.clearAll()
+            contentSegmentDao.clearAll()
+            dailySummaryDao.clearAllSummaries()
+            dailySummaryDao.clearAllCategoryAnalytics()
+            dailySummaryDao.clearAllAppAnalytics()
+        }
+    }
+
+    fun pruneOlderThan(days: Int) {
+        viewModelScope.launch {
+            val cutoff = System.currentTimeMillis() - days.toLong() * 24L * 60L * 60L * 1000L
+            usageEventDao.deleteOlderThan(cutoff)
+            contentSegmentDao.deleteOlderThan(cutoff)
+            val cal = Calendar.getInstance().apply { timeInMillis = cutoff }
+            val yyyyMmDd = String.format(
+                "%04d-%02d-%02d",
+                cal.get(Calendar.YEAR),
+                cal.get(Calendar.MONTH) + 1,
+                cal.get(Calendar.DAY_OF_MONTH)
+            )
+            dailySummaryDao.deleteSummariesOlderThan(yyyyMmDd)
+            dailySummaryDao.deleteCategoryAnalyticsOlderThan(yyyyMmDd)
+            dailySummaryDao.deleteAppAnalyticsOlderThan(yyyyMmDd)
+        }
+    }
+
+    fun startOfDayMillis(): Long {
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        return calendar.timeInMillis
+    }
+
     private fun getStartTimeForRange(range: String): Long {
         val calendar = Calendar.getInstance()
         return when (range) {
@@ -105,15 +145,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 calendar.add(Calendar.MONTH, -1)
                 calendar.timeInMillis
             }
-            "today" -> {
-                calendar.set(Calendar.HOUR_OF_DAY, 0)
-                calendar.set(Calendar.MINUTE, 0)
-                calendar.set(Calendar.SECOND, 0)
-                calendar.set(Calendar.MILLISECOND, 0)
-                calendar.timeInMillis
-            }
+            "today" -> startOfDayMillis()
             else -> 0L
         }
     }
 }
-

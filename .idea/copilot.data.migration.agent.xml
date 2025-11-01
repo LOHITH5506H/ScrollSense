@@ -5,6 +5,7 @@
     <option name="pendingSessionIds">
       <option value="0772b4aa-f933-4b33-a1d4-5fe38a0c4ce8" />
       <option value="1d58cfe3-952a-49d0-8bbe-72e9d9cb5807" />
+      <option value="1ef3d9b0-d7bd-49bf-8f26-da07506591e3" />
       <option value="27719437-5e54-4bd4-9d98-e455b15d1085" />
       <option value="290f6a1c-a078-47f8-8bdd-f4d2883c5ebb" />
       <option value="35edf579-14a7-4800-8dd4-3010e059a89d" />
@@ -12,6 +13,8 @@
       <option value="6334e939-ddf3-4f5b-a02c-86b5791c8f8b" />
       <option value="6f4d6659-3cb2-48c9-90a0-fbe2dd421eec" />
       <option value="84f2db06-30d5-4b93-9c84-1261e046cbec" />
+      <option value="a29e0fb5-c536-4f67-b639-d8c9fe00796b" />
+      <option value="c2ffc461-a71d-499d-9615-3554cce21e5f" />
       <option value="c8dfb0da-7c3e-448b-8970-0382556f2649" />
       <option value="cb5f13f6-0372-4eba-af97-be30fa6c8fe2" />
       <option value="f175f4fe-b3da-4702-8c8c-1b0476933488" />
@@ -41,6 +44,13 @@
               <option value="a0697946-ebc0-407e-999d-18dd68d4cbf3" />
               <option value="a0e9944f-c599-4ca2-90c3-0b0abf44e97e" />
               <option value="c459c69a-15d6-4209-a382-22c3d46e56b3" />
+            </set>
+          </value>
+        </entry>
+        <entry key="1ef3d9b0-d7bd-49bf-8f26-da07506591e3">
+          <value>
+            <set>
+              <option value="4014baeb-b600-4015-9248-4e60a8c9a804" />
             </set>
           </value>
         </entry>
@@ -120,6 +130,16 @@
             </set>
           </value>
         </entry>
+        <entry key="c2ffc461-a71d-499d-9615-3554cce21e5f">
+          <value>
+            <set>
+              <option value="6d21b001-cc91-4163-903e-b8a486a7def1" />
+              <option value="b31cf540-a1cc-4be0-9fa2-7ab04d04ea3d" />
+              <option value="ec59c590-1f3b-43a3-9231-99d13e2b2a47" />
+              <option value="fea3d04a-0fa7-4426-a9d9-f04e4b56dca9" />
+            </set>
+          </value>
+        </entry>
         <entry key="c8dfb0da-7c3e-448b-8970-0382556f2649">
           <value>
             <set>
@@ -181,14 +201,8 @@
       </map>
     </option>
     <pendingWorkingSetItems>
-      <entry key="1d58cfe3-952a-49d0-8bbe-72e9d9cb5807">
-        <set>
-          <option value="file://$PROJECT_DIR$/app/src/main/res/drawable/ic_scrollsense_logo.xml" />
-          <option value="file://$PROJECT_DIR$/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml" />
-          <option value="file://$PROJECT_DIR$/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml" />
-          <option value="file://$PROJECT_DIR$/app/src/main/res/drawable/ic_launcher_foreground.xml" />
-        </set>
-      </entry>
+      <entry key="1d58cfe3-952a-49d0-8bbe-72e9d9cb5807" />
+      <entry key="1ef3d9b0-d7bd-49bf-8f26-da07506591e3" />
       <entry key="27719437-5e54-4bd4-9d98-e455b15d1085" />
       <entry key="290f6a1c-a078-47f8-8bdd-f4d2883c5ebb" />
       <entry key="35edf579-14a7-4800-8dd4-3010e059a89d" />
@@ -196,6 +210,7 @@
       <entry key="6334e939-ddf3-4f5b-a02c-86b5791c8f8b" />
       <entry key="6f4d6659-3cb2-48c9-90a0-fbe2dd421eec" />
       <entry key="84f2db06-30d5-4b93-9c84-1261e046cbec" />
+      <entry key="c2ffc461-a71d-499d-9615-3554cce21e5f" />
       <entry key="c8dfb0da-7c3e-448b-8970-0382556f2649" />
       <entry key="cb5f13f6-0372-4eba-af97-be30fa6c8fe2" />
       <entry key="f175f4fe-b3da-4702-8c8c-1b0476933488" />

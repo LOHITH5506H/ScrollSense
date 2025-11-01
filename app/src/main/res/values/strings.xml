@@ -56,4 +56,25 @@
     <string-array name="com_google_android_gms_fonts_certs_prod">
         <item>MIIFYDCCA0igAwIBAgIJAOokR9FF65e5MA0GCSqGSIb3DQEBCwUAMFoxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5HZW9UcnVzdCBJbmMuMR8wHQYDVQQLExZ3d3cuZ2VvdHJ1c3QuY29tL3NzbC9DUzEhMB8GA1UEAxMYR2VvVHJ1c3QgUlNBIERvbWFpbiBDQSAyMB4XDTIxMDUyNTAwMDAwMFoXDTI0MDUyNDEyMDAwMFowTzELMAkGA1UEBhMCVVMxFzAVBgNVBAoTDkdlb1RydXN0IEluYy4xHzAdBgNVBAsTFnd3dy5nZW90cnVzdC5jb20vc3NsL0NTMSEwHwYDVQQDExhHZW9UcnVzdCBSU0EgRG9tYWluIENBIDIwggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIKAoICAQC9iWwcx5U2KLaOGOSIokwYqm25s+Eea31LdKc6KV+/vrCrT8QjWw0MBsIU/IvNHFV3UuhxCUe5t2Qwly4qF8M0rqw68LvoLjgX03BfYeR+5OYmClpHWHluxR3ă</item>
     </string-array>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_clear_data">Clear logs and data</string>
+    <string name="settings_auto_delete">Auto-delete</string>
+    <string name="settings_retention_option_days">%1$d days</string>
+    <string name="settings_clear_now">Clear now</string>
+
+    <!-- Parental Controls -->
+    <string name="parental_controls">Parental controls</string>
+    <string name="parent_set_password">Set a parent password to manage limits</string>
+    <string name="password">Password</string>
+    <string name="confirm_password">Confirm password</string>
+    <string name="set_password">Set password</string>
+    <string name="enter_parent_password">Enter parent password</string>
+    <string name="verify">Verify</string>
+    <string name="pkg_label">Package name, e.g. com.whatsapp</string>
+    <string name="minutes">Minutes</string>
+    <string name="save_limit">Save limit</string>
+    <string name="remove_limit">Remove limit</string>
+    <string name="no_limits_yet">No limits set yet.</string>
 </resources>

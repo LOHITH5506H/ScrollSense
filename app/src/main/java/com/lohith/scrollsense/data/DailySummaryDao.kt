@@ -33,4 +33,23 @@ interface DailySummaryDao {
 
     @Query("SELECT * FROM daily_summaries ORDER BY date DESC LIMIT 7")
     suspend fun getLast7Days(): List<DailySummary>
+
+    // --- Added utilities for clear/prune ---
+    @Query("DELETE FROM daily_summaries")
+    suspend fun clearAllSummaries()
+
+    @Query("DELETE FROM daily_category_analytics")
+    suspend fun clearAllCategoryAnalytics()
+
+    @Query("DELETE FROM daily_app_analytics")
+    suspend fun clearAllAppAnalytics()
+
+    @Query("DELETE FROM daily_summaries WHERE date < :minDate")
+    suspend fun deleteSummariesOlderThan(minDate: String)
+
+    @Query("DELETE FROM daily_category_analytics WHERE date < :minDate")
+    suspend fun deleteCategoryAnalyticsOlderThan(minDate: String)
+
+    @Query("DELETE FROM daily_app_analytics WHERE date < :minDate")
+    suspend fun deleteAppAnalyticsOlderThan(minDate: String)
 }

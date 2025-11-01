@@ -60,6 +60,14 @@ interface UsageEventDao {
 
     @Query("SELECT * FROM usage_events WHERE packageName = :packageName AND startTime >= :startTime")
     suspend fun getEventsForPackage(packageName: String, startTime: Long): List<UsageEvent>
+
+    // Added for data retention
+    @Query("DELETE FROM usage_events WHERE endTime < :threshold")
+    suspend fun deleteOlderThan(threshold: Long)
+
+    // Added helper for parental controls
+    @Query("SELECT COALESCE(SUM(durationMs), 0) FROM usage_events WHERE packageName = :packageName AND startTime >= :startTime")
+    suspend fun getTotalDurationForPackageSince(packageName: String, startTime: Long): Long
 }
 
 data class AppUsageStat(
