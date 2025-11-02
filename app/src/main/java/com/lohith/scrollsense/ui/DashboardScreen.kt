@@ -1,6 +1,7 @@
 package com.lohith.scrollsense.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,15 +11,31 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import com.lohith.scrollsense.data.UsageEvent
+import com.lohith.scrollsense.util.PackageNameHelper
 import com.lohith.scrollsense.viewmodel.AppUsage
 import com.lohith.scrollsense.viewmodel.MainViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.concurrent.TimeUnit
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(viewModel: MainViewModel) {
     // Observe the StateFlow from the ViewModel
     val appUsageData by viewModel.appUsage.collectAsState()
+    val usageEvents by viewModel.usageEvents.collectAsState()
+
+    // Observe the clicked app state
+    val selectedAppPackage by viewModel.selectedAppPackage.collectAsState()
 
     Column(
         modifier = Modifier
@@ -63,12 +80,31 @@ fun DashboardScreen(viewModel: MainViewModel) {
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(items = appUsageData.take(5), key = { it.appName }) { app ->
-                            AppUsageCard(app = app)
+                            AppUsageCard(
+                                app = app,
+                                onClick = {
+                                    viewModel.onAppClicked(app.appName)
+                                }
+                            )
                         }
                     }
                 }
             }
         }
+    }
+
+    // Show the Modal Bottom Sheet when an app is selected
+    if (selectedAppPackage != null) {
+        val appName = cleanAppName(selectedAppPackage!!)
+        val events = usageEventsForAppToday(usageEvents, selectedAppPackage!!)
+
+        AppDetailsSheet(
+            appName = appName,
+            events = events,
+            onDismiss = {
+                viewModel.onAppClicked(null) // Dismiss the sheet
+            }
+        )
     }
 }
 
@@ -114,7 +150,7 @@ fun SummaryCard(appUsageData: List<AppUsage>) {
         ) {
             Column {
                 Text("Screen Time", fontWeight = FontWeight.Bold)
-                Text(formatDuration(totalTime))
+                Text(formatDurationForSummary(totalTime))
             }
             Column {
                 Text("Most Used", fontWeight = FontWeight.Bold)
@@ -124,18 +160,39 @@ fun SummaryCard(appUsageData: List<AppUsage>) {
     }
 }
 
-// A card to display a single app's usage
+private fun startOfDay(): Long {
+    val c = java.util.Calendar.getInstance()
+    c.set(java.util.Calendar.HOUR_OF_DAY, 0)
+    c.set(java.util.Calendar.MINUTE, 0)
+    c.set(java.util.Calendar.SECOND, 0)
+    c.set(java.util.Calendar.MILLISECOND, 0)
+    return c.timeInMillis
+}
+
+private fun usageEventsForAppToday(all: List<UsageEvent>, appLabel: String): List<UsageEvent> {
+    val from = startOfDay()
+    return all.asSequence()
+        .filter { it.appLabel == appLabel && it.startTime >= from }
+        .sortedByDescending { it.startTime }
+        .toList()
+}
+
 @Composable
-fun AppUsageCard(app: AppUsage) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+fun AppUsageCard(
+    app: AppUsage,
+    onClick: () -> Unit
+) {
+    Card(modifier = Modifier
+        .fillMaxWidth()
+        .clickable { onClick() }) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(cleanAppName(app.appName), fontWeight = FontWeight.Bold)
-            Text("Usage: ${formatDuration(app.totalDuration)}")
+            Text("Usage: ${formatDurationForSummary(app.totalDuration)}")
         }
     }
 }
 
-private fun formatDuration(totalTimeInForeground: Long): String {
+private fun formatDurationForSummary(totalTimeInForeground: Long): String {
     val hours = totalTimeInForeground / 3_600_000
     val minutes = (totalTimeInForeground % 3_600_000) / 60_000
     return when {
@@ -144,3 +201,135 @@ private fun formatDuration(totalTimeInForeground: Long): String {
         else -> "${totalTimeInForeground / 1000}s"
     }
 }
+
+// --- START: Sheet-specific Composables ---
+// These are renamed to avoid conflicts with LogsScreen.kt
+
+/**
+ * This is the Composable for the Modal Bottom Sheet.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AppDetailsSheet(
+    appName: String,
+    events: List<UsageEvent>,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 32.dp) // Add padding for nav bar
+        ) {
+            // Title
+            Text(
+                text = appName,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            // List of Logs
+            if (events.isEmpty()) {
+                Text(
+                    text = "No detailed logs found for this app today.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp)
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(events) { event ->
+                        // RENAMED: Calling the unique composable
+                        DashboardLogItem(event = event)
+                        Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+/**
+ * RENAMED: This is the log item, copied from LogsScreen.kt
+ * but renamed to "DashboardLogItem" to avoid conflict.
+ */
+@Composable
+fun DashboardLogItem(event: UsageEvent) {
+    val context = LocalContext.current
+    val appLabel = PackageNameHelper.getAppLabel(context, event.appLabel)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(modifier = Modifier.padding(vertical = 8.dp)) {
+            Text(
+                text = appLabel,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            // MODIFIED: Use buildAnnotatedString to bold the label
+            Text(
+                text = buildAnnotatedString {
+                    withStyle(style = SpanStyle(fontWeight = FontWeight.SemiBold)) {
+                        append("Screen: ")
+                    }
+                    append(event.screenTitle)
+                },
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            // MODIFIED: Use buildAnnotatedString to bold the label
+            Text(
+                text = buildAnnotatedString {
+                    withStyle(style = SpanStyle(fontWeight = FontWeight.SemiBold)) {
+                        append("Category: ")
+                    }
+                    append(event.category)
+                },
+                style = MaterialTheme.typography.bodySmall
+            )
+
+            // MODIFIED: Use buildAnnotatedString to bold the label
+            Text(
+                text = buildAnnotatedString {
+                    withStyle(style = SpanStyle(fontWeight = FontWeight.SemiBold)) {
+                        append("Duration: ")
+                    }
+                    append(formatDurationForDashboard(event.durationMs))
+                },
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+    }
+}
+
+/**
+ * RENAMED: Copied from LogsScreen.kt and renamed to
+ * "formatDurationForDashboard" to avoid conflict.
+ */
+private fun formatDurationForDashboard(milliseconds: Long): String {
+    val minutes = TimeUnit.MILLISECONDS.toMinutes(milliseconds)
+    val seconds = TimeUnit.MILLISECONDS.toSeconds(milliseconds) % 60
+
+    return when {
+        minutes > 0 -> "${minutes}m ${seconds}s"
+        seconds > 0 -> "${seconds}s"
+        else -> "< 1s" // Handle very short durations
+    }
+}
+
+// --- END: Sheet-specific Composables ---

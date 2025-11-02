@@ -42,6 +42,20 @@ interface ContentSegmentDao {
         ORDER BY totalMs DESC
     """)
     suspend fun getTotalsForApp(pkg: String, fromMs: Long, toMs: Long): List<TotalByType>
+
+    // --- ADDED TO FIX VIEWMODEL ---
+    /**
+     * Deletes all entries from the content_segments table.
+     */
+    @Query("DELETE FROM content_segments")
+    suspend fun clearAll()
+
+    /**
+     * Deletes all segments older than the given timestamp.
+     * @param cutoffTime The epoch timestamp (in milliseconds). Segments before this time will be deleted.
+     */
+    @Query("DELETE FROM content_segments WHERE startTimeMs < :cutoffTime") // Assuming timestamp column is 'startTimeMs'
+    suspend fun deleteOlderThan(cutoffTime: Long)
 }
 
 data class TotalByAppAndType(

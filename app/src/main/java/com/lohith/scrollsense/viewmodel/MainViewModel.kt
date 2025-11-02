@@ -32,11 +32,28 @@ data class AppUsage(
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val usageEventDao = AppDatabase.getDatabase(application).usageEventDao()
+    private val db = AppDatabase.getDatabase(application)
+    private val usageEventDao = db.usageEventDao()
+    private val contentSegmentDao = db.contentSegmentDao()
+    private val dailySummaryDao = db.dailySummaryDao()
 
     // Holds the currently selected date range ("today", "week", etc.)
     private val _dateRange = MutableStateFlow("today")
     val dateRange: StateFlow<String> = _dateRange.asStateFlow()
+
+    // Holds the app name (which is the appLabel) of the app clicked on the dashboard
+    private val _selectedAppPackage = MutableStateFlow<String?>(null)
+    val selectedAppPackage = _selectedAppPackage.asStateFlow()
+
+    // --- NEW: App Name Blocklist ---
+    // A set of app names to ignore in the "Most Used Apps" list
+    private val appNameBlocklist = setOf(
+        "Gboard",             // The keyboard
+        "ScrollSense",        // The app itself
+        "Pixel Launcher",     // Common launchers
+        "Launcher",
+        "System UI"
+    )
 
     // --- DATA FLOWS ---
 
@@ -68,7 +85,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // Flow of APP usage, aggregated from UsageEvents
     val appUsage: StateFlow<List<AppUsage>> = usageEvents.map { events ->
-        events.groupBy { it.appLabel }
+        // MODIFIED: Added a filter to remove blocked apps
+        events.filter { it.appLabel !in appNameBlocklist }
+            .groupBy { it.appLabel }
             .map { (appName, eventList) ->
                 AppUsage(
                     appName = appName,
@@ -84,6 +103,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // --- ACTIONS ---
 
+    /**
+     * Call this when a user clicks on an app from the dashboard list.
+     * @param appName The appName (appLabel) of the clicked app. Null to dismiss the sheet.
+     */
+    fun onAppClicked(appName: String?) {
+        _selectedAppPackage.value = appName
+    }
+
     fun updateDateRange(newRange: String) {
         _dateRange.value = newRange
     }
@@ -92,6 +119,43 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             usageEventDao.clearAll()
         }
+    }
+
+    fun clearAllData() {
+        viewModelScope.launch {
+            usageEventDao.clearAll()
+            contentSegmentDao.clearAll()
+            dailySummaryDao.clearAllSummaries()
+            dailySummaryDao.clearAllCategoryAnalytics()
+            dailySummaryDao.clearAllAppAnalytics()
+        }
+    }
+
+    fun pruneOlderThan(days: Int) {
+        viewModelScope.launch {
+            val cutoff = System.currentTimeMillis() - days.toLong() * 24L * 60L * 60L * 1000L
+            usageEventDao.deleteOlderThan(cutoff)
+            contentSegmentDao.deleteOlderThan(cutoff)
+            val cal = Calendar.getInstance().apply { timeInMillis = cutoff }
+            val yyyyMmDd = String.format(
+                "%04d-%02d-%02d",
+                cal.get(Calendar.YEAR),
+                cal.get(Calendar.MONTH) + 1,
+                cal.get(Calendar.DAY_OF_MONTH)
+            )
+            dailySummaryDao.deleteSummariesOlderThan(yyyyMmDd)
+            dailySummaryDao.deleteCategoryAnalyticsOlderThan(yyyyMmDd)
+            dailySummaryDao.deleteAppAnalyticsOlderThan(yyyyMmDd)
+        }
+    }
+
+    fun startOfDayMillis(): Long {
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        return calendar.timeInMillis
     }
 
     private fun getStartTimeForRange(range: String): Long {
@@ -105,15 +169,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 calendar.add(Calendar.MONTH, -1)
                 calendar.timeInMillis
             }
-            "today" -> {
-                calendar.set(Calendar.HOUR_OF_DAY, 0)
-                calendar.set(Calendar.MINUTE, 0)
-                calendar.set(Calendar.SECOND, 0)
-                calendar.set(Calendar.MILLISECOND, 0)
-                calendar.timeInMillis
-            }
+            "today" -> startOfDayMillis()
             else -> 0L
         }
     }
 }
-

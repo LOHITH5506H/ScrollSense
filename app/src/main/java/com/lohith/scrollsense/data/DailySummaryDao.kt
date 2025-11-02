@@ -33,4 +33,40 @@ interface DailySummaryDao {
 
     @Query("SELECT * FROM daily_summaries ORDER BY date DESC LIMIT 7")
     suspend fun getLast7Days(): List<DailySummary>
+
+    // --- ADDED TO FIX VIEWMODEL ---
+
+    // --- Clear All Functions ---
+
+    @Query("DELETE FROM daily_summaries")
+    suspend fun clearAllSummaries()
+
+    @Query("DELETE FROM daily_category_analytics")
+    suspend fun clearAllCategoryAnalytics()
+
+    @Query("DELETE FROM daily_app_analytics")
+    suspend fun clearAllAppAnalytics()
+
+    // --- Pruning (Delete Older Than) Functions ---
+
+    /**
+     * Deletes summaries older than the given date string.
+     * @param yyyyMmDd The date string in "YYYY-MM-DD" format.
+     */
+    @Query("DELETE FROM daily_summaries WHERE date < :yyyyMmDd")
+    suspend fun deleteSummariesOlderThan(yyyyMmDd: String)
+
+    /**
+     * Deletes category analytics older than the given date string.
+     * @param yyyyMmDd The date string in "YYYY-MM-DD" format.
+     */
+    @Query("DELETE FROM daily_category_analytics WHERE date < :yyyyMmDd")
+    suspend fun deleteCategoryAnalyticsOlderThan(yyyyMmDd: String)
+
+    /**
+     * Deletes app analytics older than the given date string.
+     * @param yyyyMmDd The date string in "YYYY-MM-DD" format.
+     */
+    @Query("DELETE FROM daily_app_analytics WHERE date < :yyyyMmDd")
+    suspend fun deleteAppAnalyticsOlderThan(yyyyMmDd: String)
 }

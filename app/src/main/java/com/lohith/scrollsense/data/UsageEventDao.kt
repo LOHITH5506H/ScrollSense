@@ -12,6 +12,7 @@ interface UsageEventDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(event: UsageEvent): Long // return row id
 
+
     @Query("SELECT * FROM usage_events ORDER BY startTime DESC")
     fun getAllEvents(): Flow<List<UsageEvent>>
 
@@ -60,6 +61,14 @@ interface UsageEventDao {
 
     @Query("SELECT * FROM usage_events WHERE packageName = :packageName AND startTime >= :startTime")
     suspend fun getEventsForPackage(packageName: String, startTime: Long): List<UsageEvent>
+
+    // --- ADDED TO FIX VIEWMODEL ---
+    /**
+     * Deletes all events older than the given timestamp.
+     * @param cutoffTime The epoch timestamp (in milliseconds). Events before this time will be deleted.
+     */
+    @Query("DELETE FROM usage_events WHERE startTime < :cutoffTime")
+    suspend fun deleteOlderThan(cutoffTime: Long)
 }
 
 data class AppUsageStat(
