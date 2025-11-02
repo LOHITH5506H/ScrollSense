@@ -115,6 +115,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _dateRange.value = newRange
     }
 
+
+
     fun clearAllLogs() {
         viewModelScope.launch {
             usageEventDao.clearAll()

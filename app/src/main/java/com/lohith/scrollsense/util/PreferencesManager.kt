@@ -18,7 +18,7 @@ import javax.crypto.spec.GCMParameterSpec
  *
  * This version includes encryption for sensitive keys (like parental passwords).
  */
-class PreferencesManager private constructor(private val context: Context) {
+class PreferencesManager constructor(private val context: Context) {
 
     companion object {
         @Volatile private var INSTANCE: PreferencesManager? = null
@@ -112,6 +112,15 @@ class PreferencesManager private constructor(private val context: Context) {
     fun isParentPasswordSet(): Boolean {
         return prefs.contains(KEY_PARENT_PWD_HASH)
     }
+
+// In your PreferencesManager.kt file
+
+    fun getParentPassword(): String {
+        val encryptedPwd = prefs.getString(KEY_PARENT_PWD_HASH, null) ?: return ""
+        // Decrypt the password before returning it. Return empty if decryption fails.
+        return decrypt(encryptedPwd)
+    }
+
 
     fun verifyParentPassword(password: String): Boolean {
         val encryptedPwd = prefs.getString(KEY_PARENT_PWD_HASH, null) ?: return false
