@@ -1,11 +1,10 @@
-package com.lohith.scrollsense
+package com.lohith.scrollsense.util
 
 import android.app.usage.UsageStats
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
-import java.util.*
 
 object UsageStatsHelper {
 

@@ -3,10 +3,15 @@
 package com.lohith.scrollsense.viewmodel
 
 import android.app.Application
+import android.content.Intent
+import android.content.pm.PackageManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.lohith.scrollsense.data.AppDatabase
 import com.lohith.scrollsense.data.UsageEvent
+// --- NEW IMPORT ---
+import com.lohith.scrollsense.data.models.AppInfo
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -54,6 +59,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         "Launcher",
         "System UI"
     )
+
+    // --- NEW: INSTALLED APPS LIST ---
+    private val _installedApps = MutableStateFlow<List<AppInfo>>(emptyList())
+    val installedApps: StateFlow<List<AppInfo>> = _installedApps.asStateFlow()
+    // --- END NEW SECTION ---
 
     // --- DATA FLOWS ---
 
@@ -115,6 +125,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _dateRange.value = newRange
     }
 
+    // --- NEW: FUNCTION TO LOAD APPS ---
+    /**
+     * Fetches a list of all launchable applications installed on the device
+     * and updates the `installedApps` state flow.
+     */
+    fun loadInstalledApps() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val pm = getApplication<Application>().packageManager
+            val mainIntent = Intent(Intent.ACTION_MAIN, null).apply {
+                addCategory(Intent.CATEGORY_LAUNCHER)
+            }
+
+            val appsList = pm.queryIntentActivities(mainIntent, 0).mapNotNull {
+                AppInfo(
+                    appName = it.loadLabel(pm).toString(),
+                    packageName = it.activityInfo.packageName,
+                    icon = it.loadIcon(pm)
+                )
+            }
+                .sortedBy { it.appName.lowercase() } // Sort alphabetically
+
+            _installedApps.value = appsList
+        }
+    }
+    // --- END NEW SECTION ---
 
 
     fun clearAllLogs() {

@@ -5,9 +5,13 @@ import android.content.SharedPreferences
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import androidx.core.content.edit // --- NEW ---
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.security.KeyStore
+import java.text.SimpleDateFormat // --- NEW ---
+import java.util.Date // --- NEW ---
+import java.util.Locale // --- NEW ---
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -32,6 +36,11 @@ class PreferencesManager constructor(private val context: Context) {
         private const val KEY_ALIAS = "ScrollSenseParentalKey"
         private const val TRANSFORMATION = "AES/GCM/NoPadding"
         private const val IV_SEPARATOR = "]"
+
+        // --- NEW: Keys for notification tracking ---
+        private const val NOTIFIED_APPS_KEY = "notified_apps_today"
+        private const val NOTIFIED_DATE_KEY = "notified_date"
+        // --- END NEW ---
 
         fun get(context: Context): PreferencesManager {
             return INSTANCE ?: synchronized(this) {
@@ -104,7 +113,6 @@ class PreferencesManager constructor(private val context: Context) {
 
     // --- Parental Controls ---
     fun setParentPassword(password: String) {
-        // We encrypt the password itself (or a hash, but encrypting is fine)
         val encryptedPwd = encrypt(password)
         prefs.edit().putString(KEY_PARENT_PWD_HASH, encryptedPwd).apply()
     }
@@ -113,11 +121,8 @@ class PreferencesManager constructor(private val context: Context) {
         return prefs.contains(KEY_PARENT_PWD_HASH)
     }
 
-// In your PreferencesManager.kt file
-
     fun getParentPassword(): String {
         val encryptedPwd = prefs.getString(KEY_PARENT_PWD_HASH, null) ?: return ""
-        // Decrypt the password before returning it. Return empty if decryption fails.
         return decrypt(encryptedPwd)
     }
 
@@ -155,4 +160,44 @@ class PreferencesManager constructor(private val context: Context) {
     fun getLimitForPackage(packageName: String): Int {
         return getParentalLimits()[packageName] ?: -1 // -1 means no limit
     }
+
+    // --- NEW: Functions to track notified apps ---
+
+    private fun getTodayDateString(): String {
+        return SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+    }
+
+    /**
+     * Adds a package name to the list of apps notified today.
+     */
+    fun addNotifiedApp(packageName: String) {
+        val today = getTodayDateString()
+        val apps = getNotifiedApps().toMutableSet()
+        apps.add(packageName)
+        prefs.edit {
+            putStringSet(NOTIFIED_APPS_KEY, apps)
+            putString(NOTIFIED_DATE_KEY, today)
+        }
+    }
+
+    /**
+     * Gets the set of apps notified today.
+     * If the saved date is not today, it clears the old list and returns an empty set.
+     */
+    fun getNotifiedApps(): Set<String> {
+        val today = getTodayDateString()
+        val savedDate = prefs.getString(NOTIFIED_DATE_KEY, "")
+
+        if (today != savedDate) {
+            // It's a new day, clear the list
+            prefs.edit {
+                remove(NOTIFIED_APPS_KEY)
+                remove(NOTIFIED_DATE_KEY)
+            }
+            return emptySet()
+        }
+
+        return prefs.getStringSet(NOTIFIED_APPS_KEY, emptySet()) ?: emptySet()
+    }
+    // --- END NEW ---
 }

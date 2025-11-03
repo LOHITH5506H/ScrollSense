@@ -2,20 +2,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Essential permissions for ScrollSense functionality -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE"
         tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
 
-    <!-- Queries for package visibility (Android 11+) -->
     <queries>
         <intent>
             <action android:name="android.intent.action.MAIN" />
@@ -33,30 +32,29 @@
         android:theme="@style/Theme.ScrollSense"
         tools:targetApi="31">
 
-        <!-- Main Activity -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.ScrollSense">
+            android:theme="@style/Theme.ScrollSense"
+
+            android:windowSoftInputMode="adjustResize">
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
-        <!-- Enhanced Analytics Activity -->
         <activity
             android:name=".ui.EnhancedAnalyticsActivity"
             android:exported="false"
             android:theme="@style/Theme.ScrollSense" />
 
-        <!-- Charts Activity (existing) -->
         <activity
             android:name=".ui.ChartsActivity"
             android:exported="false"
             android:theme="@style/Theme.ScrollSense" />
 
-        <!-- Accessibility Service for usage tracking -->
         <service
             android:name=".MyAccessibilityService"
             android:exported="true"
@@ -69,13 +67,6 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
-        <!-- Background Analytics Service -->
-        <service
-            android:name=".service.AnalyticsBackgroundService"
-            android:enabled="true"
-            android:exported="false" />
-
-        <!-- File Provider for PDF exports and file sharing -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

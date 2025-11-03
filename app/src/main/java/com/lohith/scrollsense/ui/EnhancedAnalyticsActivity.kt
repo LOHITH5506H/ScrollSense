@@ -129,6 +129,11 @@ class EnhancedAnalyticsActivity : AppCompatActivity() {
     }
 
     private fun refreshDetailedStats() {
+        // --- GET CURRENT TIME RANGE ---
+        val timeRange = viewModel.currentTimeRange.value ?: "today"
+        val isMonthlyView = timeRange == "month"
+        val isTodayView = timeRange == "today"
+
         val days = lastSummaries.size.coerceAtLeast(1)
         val totalTime = lastSummaries.sumOf { it.totalScreenTimeMs }
         val totalSessions = lastSummaries.sumOf { it.sessionsCount }
@@ -145,9 +150,22 @@ class EnhancedAnalyticsActivity : AppCompatActivity() {
         val topApp = lastApps.maxByOrNull { it.totalTimeMs }
         val itemList = mutableListOf<DetailedStatItem>()
 
-        itemList += DetailedStatItem("Average per day", formatDuration(avgPerDay))
-        itemList += DetailedStatItem("Busiest day", busiest?.let { "${formatDisplayDate(it.date)} • ${formatDuration(it.totalScreenTimeMs)}" } ?: "-")
-        itemList += DetailedStatItem("Sessions per day (avg)", String.format(Locale.getDefault(), "%.1f", if (days > 0) totalSessions.toFloat() / days else 0f))
+        // "Average per day" is fine for "today" and "week"
+        // For "month", this becomes "Average per week" since summaries are grouped
+        val avgLabel = if (isMonthlyView) "Average per week" else "Average per day"
+        itemList += DetailedStatItem(avgLabel, formatDuration(avgPerDay))
+
+        // --- FIX #1: Remove "Busiest day" for "today" view ---
+        if (!isTodayView) {
+            val busiestLabel = if (isMonthlyView) "Busiest week" else "Busiest day"
+            itemList += DetailedStatItem(busiestLabel, busiest?.let { "${formatDisplayDate(it.date)} • ${formatDuration(it.totalScreenTimeMs)}" } ?: "-")
+        }
+
+        // --- FIX #2: Change "Sessions per day" for "month" view ---
+        val sessionsLabel = if (isMonthlyView) "Sessions per week (avg)" else "Sessions per day (avg)"
+        itemList += DetailedStatItem(sessionsLabel, String.format(Locale.getDefault(), "%.1f", if (days > 0) totalSessions.toFloat() / days else 0f))
+        // --- END FIXES ---
+
         itemList += DetailedStatItem("Top category", topCategory?.let { "${it.category} • ${formatDuration(it.totalTimeMs)}" } ?: "-")
         itemList += DetailedStatItem("Top app", topApp?.let { "${sanitizeAppName(it.appName, it.packageName)} • ${formatDuration(it.totalTimeMs)}" } ?: "-")
         itemList += DetailedStatItem("Apps used", lastApps.size.toString())
@@ -173,13 +191,16 @@ class EnhancedAnalyticsActivity : AppCompatActivity() {
     }
 
     private fun updateWeeklyBarChart(summaries: List<com.lohith.scrollsense.data.DailySummary>) {
-        val sortedSummaries = summaries.sortedBy { it.date }
+        // Use the summaries list directly as it's correctly ordered by the ViewModel
+        val sortedSummaries = summaries
 
         val labels = sortedSummaries.map { summary ->
             try {
+                // This will fail for "W1", "W2", etc.
                 val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(summary.date) ?: Date()
                 SimpleDateFormat("E", Locale.getDefault()).format(date)
             } catch (e: Exception) {
+                // The catch block correctly returns the original string ("W1", "W2")
                 summary.date
             }
         }
@@ -198,12 +219,9 @@ class EnhancedAnalyticsActivity : AppCompatActivity() {
                 position = XAxis.XAxisPosition.BOTTOM; granularity = 1f; setGranularityEnabled(true)
                 setDrawGridLines(false); setAvoidFirstLastClipping(false); yOffset = 6f; textSize = 10f
                 axisMinimum = -0.5f; axisMaximum = entries.size - 0.5f
-                valueFormatter = if (viewModel.currentTimeRange.value == "month") {
-                    val monthLabels = entries.indices.map { "W${it + 1}" }
-                    IndexAxisValueFormatter(monthLabels)
-                } else {
-                    IndexAxisValueFormatter(labels)
-                }
+
+                // The 'labels' variable now correctly holds "E" for week view or "W1" for month view
+                valueFormatter = IndexAxisValueFormatter(labels)
             }
             axisRight.isEnabled = false; configureYAxis(axisLeft, maxMinutes); legend.isEnabled = false
             setExtraOffsets(8f, 12f, 8f, 24f); animateY(1000); invalidate()
@@ -290,6 +308,8 @@ class EnhancedAnalyticsActivity : AppCompatActivity() {
         when (item.title) {
             "Top category" -> smoothScrollToView(binding.pieChartCategories)
             "Top app", "Apps used" -> smoothScrollToView(binding.barChartTopApps)
+            // This now handles all day/week trend clicks
+            "Busiest day", "Busiest week", "Average per day", "Average per week" -> smoothScrollToView(binding.barChartWeekly)
             else -> smoothScrollToView(binding.barChartWeekly)
         }
     }
@@ -456,6 +476,7 @@ class EnhancedAnalyticsActivity : AppCompatActivity() {
             val dt = inFmt.parse(dateStr)
             SimpleDateFormat("EEE, d MMM", Locale.getDefault()).format(dt ?: Date())
         } catch (_: Exception) {
+            // This will catch "W1", "W2", etc. and just return the original string
             dateStr
         }
     }
